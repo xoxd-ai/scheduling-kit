@@ -4,15 +4,17 @@
  * Render-level coverage of the real handlePaymentSelect routing (no
  * simulation): unavailable card/venmo selections and unknown method ids
  * must land on the error step and never fabricate a local booking via
- * manual completion; only explicit manual ids may complete in-app.
+ * manual completion. A missing durable booking command must fail before payment,
+ * and a captured-but-unconfirmed payment must retain its reconciliation reference.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/svelte';
+import { render, screen, fireEvent, waitFor } from '@testing-library/svelte';
+import type { ComponentProps } from 'svelte';
 import HybridCheckoutDrawer from '../../src/components/HybridCheckoutDrawer.svelte';
 import { getDefaultCapabilities } from '../../src/payments/types.js';
 import type { PaymentCapabilities, PaymentMethodOption } from '../../src/payments/types.js';
-import type { Service } from '../../src/core/types.js';
+import type { Service, PaymentResult } from '../../src/core/types.js';
 
 const service: Service = {
   id: 'svc-1',
@@ -32,9 +34,14 @@ const buildCapabilities = (methods: PaymentMethodOption[]): PaymentCapabilities 
   methods,
 });
 
-const renderDrawer = (capabilities: PaymentCapabilities) => {
+const renderDrawer = (
+  capabilities: PaymentCapabilities,
+  overrides: Partial<ComponentProps<typeof HybridCheckoutDrawer>> = {},
+) => {
   const onBookingComplete = vi.fn();
   const onCreateStripeIntent = vi.fn();
+  const onCreatePaymentOrder = vi.fn();
+  const onCapturePayment = vi.fn();
 
   render(HybridCheckoutDrawer, {
     props: {
@@ -45,11 +52,14 @@ const renderDrawer = (capabilities: PaymentCapabilities) => {
       onLoadDates: vi.fn(async () => [AVAILABLE_DATE]),
       onLoadSlots: vi.fn(async () => [{ datetime: SLOT_DATETIME, available: true }]),
       onCreateStripeIntent,
+      onCreatePaymentOrder,
+      onCapturePayment,
       onBookingComplete,
+      ...overrides,
     },
   });
 
-  return { onBookingComplete, onCreateStripeIntent };
+  return { onBookingComplete, onCreateStripeIntent, onCreatePaymentOrder, onCapturePayment };
 };
 
 /** Walk the real drawer from service selection to the payment step. */
@@ -98,12 +108,13 @@ const selectPaymentOption = async (displayName: string) => {
 
 describe('HybridCheckoutDrawer payment routing', () => {
   beforeEach(() => {
-    vi.useFakeTimers();
+    vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date(2026, 5, 1, 12, 0, 0, 0));
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   it('errors card selections when Stripe is unavailable and never completes a booking', async () => {
@@ -159,18 +170,85 @@ describe('HybridCheckoutDrawer payment routing', () => {
     expect(onBookingComplete).not.toHaveBeenCalled();
   });
 
-  it('completes explicit manual selections (cash) in-app', async () => {
+  it.each(['cash', 'venmo-direct'])('does not invent a paid manual booking for %s', async (method) => {
     const { onBookingComplete } = renderDrawer(
-      buildCapabilities([{ id: 'cash', name: 'cash', displayName: 'Cash', available: true }])
+      buildCapabilities([{ id: method, name: method, displayName: 'Manual payment', available: true }])
     );
 
     await advanceToPaymentStep();
-    await selectPaymentOption('Cash');
+    await selectPaymentOption('Manual payment');
 
-    expect(await screen.findByText('Booking Confirmed!')).toBeInTheDocument();
-    expect(onBookingComplete).toHaveBeenCalledTimes(1);
-    expect(onBookingComplete).toHaveBeenCalledWith(
-      expect.objectContaining({ serviceId: 'svc-1', paymentStatus: 'paid' })
-    );
+    expect(await screen.findByText(/cannot persist manual-payment bookings/)).toBeInTheDocument();
+    expect(screen.queryByText('Booking Confirmed!')).not.toBeInTheDocument();
+    expect(onBookingComplete).not.toHaveBeenCalled();
+  });
+
+  it.each(['card', 'venmo'])('refuses %s before starting payment without a server booking command', async (method) => {
+    const capabilities = {
+      ...buildCapabilities([{ id: method, name: method, displayName: 'Automated payment', available: true }]),
+      stripe: { available: true, publishableKey: 'pk_test_synthetic' },
+      venmo: { available: true, clientId: 'synthetic', environment: 'sandbox' as const },
+    };
+    const callbacks = renderDrawer(capabilities);
+    await advanceToPaymentStep();
+    await selectPaymentOption('Automated payment');
+
+    expect(await screen.findByText('Booking is unavailable. No payment has been started.')).toBeInTheDocument();
+    expect(callbacks.onCreateStripeIntent).not.toHaveBeenCalled();
+    expect(callbacks.onCreatePaymentOrder).not.toHaveBeenCalled();
+    expect(callbacks.onCapturePayment).not.toHaveBeenCalled();
+    expect(callbacks.onBookingComplete).not.toHaveBeenCalled();
+  });
+
+  it.each(['callback failure', 'missing booking id', 'pending booking', 'missing capture id', 'confirmed'])('uses observed server receipts: %s', async (scenario) => {
+    let approve: ((data: { orderID: string; payerID: string }) => Promise<void>) | undefined;
+    vi.stubGlobal('paypal', {
+      FUNDING: { VENMO: 'venmo' },
+      Buttons: (config: { onApprove: NonNullable<typeof approve> }) => {
+        approve = config.onApprove;
+        return { render: vi.fn(async () => {}), close: vi.fn(), isEligible: () => true };
+      },
+    });
+    const payment: PaymentResult = {
+      success: true,
+      transactionId: scenario === 'missing capture id' ? '' : 'CAPTURE-SYNTHETIC-1',
+      processor: 'venmo',
+      amount: service.price,
+      currency: service.currency,
+      timestamp: '2026-06-01T16:00:00.000Z',
+    };
+    const onBookWithPaymentRef = vi.fn(async () => {
+      if (scenario === 'callback failure') throw new Error('synthetic timeout');
+      return { booking: {
+        id: scenario === 'missing booking id' ? undefined : 'BOOKING-SYNTHETIC-1',
+        status: scenario === 'pending booking' ? 'pending' as const : 'confirmed' as const,
+      } };
+    });
+    const { onBookingComplete } = renderDrawer({
+      ...buildCapabilities([{ id: 'venmo', name: 'venmo', displayName: 'Venmo', available: true }]),
+      venmo: { available: true, clientId: 'synthetic', environment: 'sandbox' },
+    }, { onBookWithPaymentRef, onCapturePayment: vi.fn(async () => payment) });
+    await advanceToPaymentStep();
+    await selectPaymentOption('Venmo');
+    await waitFor(() => expect(approve).toBeTypeOf('function'));
+    await approve!({ orderID: 'ORDER-SYNTHETIC-1', payerID: 'PAYER-SYNTHETIC-1' });
+
+    if (scenario === 'confirmed') {
+      expect(await screen.findByText('Booking Confirmed!')).toBeInTheDocument();
+      expect(onBookingComplete).toHaveBeenCalledWith(expect.objectContaining({ id: 'BOOKING-SYNTHETIC-1' }));
+      return;
+    }
+    expect(await screen.findByText(/Do not pay again/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Try Again' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Go back' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Booking Confirmed!')).not.toBeInTheDocument();
+    expect(onBookingComplete).not.toHaveBeenCalled();
+    if (scenario === 'missing capture id') {
+      expect(onBookWithPaymentRef).not.toHaveBeenCalled();
+      expect(screen.getByText(/Unavailable — provider verification required/)).toBeInTheDocument();
+    } else {
+      expect(screen.getByText(/CAPTURE-SYNTHETIC-1/)).toBeInTheDocument();
+      expect(onBookWithPaymentRef).toHaveBeenCalledWith(expect.objectContaining({ paymentRef: 'CAPTURE-SYNTHETIC-1' }));
+    }
   });
 });

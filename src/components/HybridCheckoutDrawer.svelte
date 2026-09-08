@@ -91,7 +91,7 @@
     onCapturePayment?: (intentId: string) => Promise<PaymentResult>;
     /** Create a Stripe PaymentIntent (returns clientSecret + intentId) */
     onCreateStripeIntent?: (params: { amount: number; currency: string; description: string }) => Promise<{ clientSecret: string; intentId: string }>;
-    /** Create booking with a pre-captured payment reference */
+    /** Required for automated checkout: return the persisted, confirmed server booking receipt. */
     onBookWithPaymentRef?: (params: { serviceId: string; datetime: string; client: ClientInfo; paymentRef: string; paymentProcessor: string }) => Promise<{ booking: Partial<Booking> }>;
     /** Booking complete callback */
     onBookingComplete?: (booking: Partial<Booking> | AcuityBookingData) => void;
@@ -116,6 +116,9 @@
   let selectedPayment = $state<string | undefined>(undefined);
   let errorMessage = $state<string | undefined>(undefined);
   let completedBooking = $state<Partial<Booking> | AcuityBookingData | undefined>(undefined);
+  // Retain the original capture observation if booking cannot be confirmed.
+  // This is a UI pointer for reconciliation, not a second durable payment store.
+  let paymentReceipt = $state<PaymentResult | undefined>(undefined);
 
   // Data loading
   let availableDates = $state<string[]>([]);
@@ -157,7 +160,7 @@
   });
 
   const canGoBack = $derived(
-    step !== 'service' && step !== 'complete' && step !== 'processing' && step !== 'venmo-checkout' && step !== 'stripe-checkout'
+    !paymentReceipt && step !== 'service' && step !== 'complete' && step !== 'processing' && step !== 'venmo-checkout' && step !== 'stripe-checkout'
   );
 
   // =============================================================================
@@ -231,11 +234,17 @@
   };
 
   const handlePaymentSelect = async (paymentId: string) => {
+    if (paymentReceipt || processing) return;
     // Selector state always holds the canonical public id ('card', never the
     // internal 'stripe' adapter name).
     selectedPayment = toPublicPaymentMethodId(paymentId);
 
     if (paymentId === 'venmo' && capabilities.venmo?.available && onCreatePaymentOrder && onCapturePayment) {
+      if (!onBookWithPaymentRef) {
+        errorMessage = 'Booking is unavailable. No payment has been started.';
+        step = 'error';
+        return;
+      }
       // Use PayPal SDK flow for Venmo — requires client-side approval
       step = 'venmo-checkout';
     } else if (paymentId === 'venmo') {
@@ -243,6 +252,11 @@
       errorMessage = 'Venmo payments are not available right now.';
       step = 'error';
     } else if (isCardPaymentMethodId(paymentId) && capabilities.stripe?.available && onCreateStripeIntent && selectedService) {
+      if (!onBookWithPaymentRef) {
+        errorMessage = 'Booking is unavailable. No payment has been started.';
+        step = 'error';
+        return;
+      }
       // Public 'card' (and the legacy 'stripe' alias) -> Stripe Elements flow.
       // Create PaymentIntent server-side, then show Stripe Elements
       step = 'processing';
@@ -262,145 +276,71 @@
       errorMessage = 'Card payments are not available right now.';
       step = 'error';
     } else if (isManualPaymentMethodId(paymentId)) {
-      // Only explicit manual methods may complete in-app
-      processCustomPayment(paymentId);
+      // The standalone manual/direct-Venmo adapters remain supported. This
+      // drawer has no server command for an unpaid booking, so cannot fake one.
+      errorMessage = 'This checkout cannot persist manual-payment bookings yet. Contact the business to book. No payment has been collected.';
+      step = 'error';
     } else {
       errorMessage = 'This payment method is not supported in the current checkout flow.';
       step = 'error';
     }
   };
 
-  const processCustomPayment = async (paymentId: string) => {
-    if (!selectedService || !clientInfo || !selectedDatetime) return;
-
-    step = 'processing';
-    processing = true;
-    errorMessage = undefined;
-
-    try {
-      // Create a local booking record
-      const booking: Partial<Booking> = {
-        id: `local-${Date.now()}`,
-        serviceId: selectedService.id,
-        serviceName: selectedService.name,
-        providerId: selectedProvider?.id,
-        providerName: selectedProvider?.name,
-        datetime: selectedDatetime,
-        duration: selectedService.duration,
-        price: selectedService.price,
-        currency: selectedService.currency,
-        client: clientInfo,
-        status: 'pending',
-        paymentStatus: 'paid',
-      };
-      completedBooking = booking;
-
-      step = 'complete';
-      onBookingComplete?.(booking);
-    } catch (e) {
-      errorMessage = e instanceof Error ? e.message : 'Payment failed';
-      step = 'error';
-    }
-
-    processing = false;
-  };
-
-  const handleVenmoSuccess = async (result: PaymentResult) => {
-    if (!selectedService || !clientInfo || !selectedDatetime) return;
-    if (debug) console.log('[HybridCheckout] Venmo payment captured:', result);
-
+  const handleCapturedPayment = async (result: PaymentResult, processor: 'venmo' | 'stripe') => {
+    // Deduplicate SDK callbacks and retain the original receipt even if the
+    // consumer callback disappears or the selected form state is unavailable.
+    if (paymentReceipt) return;
+    paymentReceipt = result;
     step = 'processing';
     processing = true;
 
     try {
-      if (onBookWithPaymentRef) {
-        const { booking } = await onBookWithPaymentRef({
-          serviceId: selectedService.id,
-          datetime: selectedDatetime,
-          client: clientInfo,
-          paymentRef: result.transactionId,
-          paymentProcessor: 'venmo',
-        });
-        completedBooking = booking;
-      } else {
-        // Fallback: create local booking record
-        completedBooking = {
-          id: `venmo-${result.transactionId}`,
-          serviceId: selectedService.id,
-          serviceName: selectedService.name,
-          datetime: selectedDatetime,
-          duration: selectedService.duration,
-          price: selectedService.price,
-          currency: selectedService.currency,
-          client: clientInfo,
-          status: 'confirmed',
-          paymentStatus: 'paid',
-        };
+      if (!result.success || !result.transactionId?.trim() || result.metadata?.status === 'pending_collection') {
+        throw new Error('Payment capture needs verification.');
       }
-
+      if (!selectedService || !clientInfo || !selectedDatetime || !onBookWithPaymentRef) {
+        throw new Error('The booking command is unavailable.');
+      }
+      const { booking } = await onBookWithPaymentRef({
+        serviceId: selectedService.id,
+        datetime: selectedDatetime,
+        client: clientInfo,
+        paymentRef: result.transactionId,
+        paymentProcessor: processor,
+      });
+      completedBooking = booking;
+      if (!booking.id?.trim() || booking.status !== 'confirmed') {
+        throw new Error('The server did not return a confirmed booking receipt.');
+      }
       step = 'complete';
-      onBookingComplete?.(completedBooking);
-    } catch (e) {
-      errorMessage = e instanceof Error ? e.message : 'Failed to create booking after payment';
+    } catch {
+      // Do not offer a payment retry or discard the observation: capture and
+      // booking are separate effects, and a timeout can have committed either.
+      errorMessage = 'Your booking is not confirmed. Do not pay again. Contact the business with the payment reference below so they can verify the payment and booking.';
       step = 'error';
+    } finally {
+      processing = false;
     }
-
-    processing = false;
+    // A consumer notification error cannot undo a confirmed server receipt.
+    if (step === 'complete' && completedBooking) onBookingComplete?.(completedBooking);
   };
+
+  const handleVenmoSuccess = (result: PaymentResult) => handleCapturedPayment(result, 'venmo');
+  const handleStripeSuccess = (result: PaymentResult) => handleCapturedPayment(result, 'stripe');
 
   const handleVenmoCancel = () => {
-    // User cancelled Venmo — go back to payment selection
+    if (paymentReceipt) return;
     step = 'payment';
   };
 
-  const handleStripeSuccess = async (result: PaymentResult) => {
-    if (!selectedService || !clientInfo || !selectedDatetime) return;
-    if (debug) console.log('[HybridCheckout] Stripe payment succeeded:', result);
-
-    step = 'processing';
-    processing = true;
-
-    try {
-      if (onBookWithPaymentRef) {
-        const { booking } = await onBookWithPaymentRef({
-          serviceId: selectedService.id,
-          datetime: selectedDatetime,
-          client: clientInfo,
-          paymentRef: result.transactionId,
-          paymentProcessor: 'stripe',
-        });
-        completedBooking = booking;
-      } else {
-        completedBooking = {
-          id: `stripe-${result.transactionId}`,
-          serviceId: selectedService.id,
-          serviceName: selectedService.name,
-          datetime: selectedDatetime,
-          duration: selectedService.duration,
-          price: selectedService.price,
-          currency: selectedService.currency,
-          client: clientInfo,
-          status: 'confirmed',
-          paymentStatus: 'paid',
-        };
-      }
-
-      step = 'complete';
-      onBookingComplete?.(completedBooking);
-    } catch (e) {
-      errorMessage = e instanceof Error ? e.message : 'Failed to create booking after payment';
-      step = 'error';
-    }
-
-    processing = false;
-  };
-
   const handleStripeCancel = () => {
+    if (paymentReceipt) return;
     stripeIntent = undefined;
     step = 'payment';
   };
 
   const handleBack = () => {
+    if (paymentReceipt) return;
     errorMessage = undefined;
     switch (step) {
       case 'provider':
@@ -434,6 +374,7 @@
   };
 
   const handleNewBooking = () => {
+    if (paymentReceipt && step !== 'complete') return;
     // Reset state
     step = 'service';
     selectedService = undefined;
@@ -444,6 +385,7 @@
     selectedPayment = undefined;
     errorMessage = undefined;
     completedBooking = undefined;
+    paymentReceipt = undefined;
     stripeIntent = undefined;
     availableDates = [];
     availableSlots = [];
@@ -698,9 +640,21 @@
           </div>
           <h3 class="text-lg font-semibold mb-2">Something Went Wrong</h3>
           <p class="text-surface-600-400 mb-6">{errorMessage || 'An error occurred.'}</p>
-          <button type="button" class="btn preset-filled-primary-500" onclick={handleBack}>
-            Try Again
-          </button>
+          {#if paymentReceipt}
+            <div class="payment-reconciliation text-left rounded-container bg-surface-100-900 p-4" role="status">
+              <p><strong>Payment processor:</strong> {paymentReceipt.processor}</p>
+              <p><strong>Payment reference:</strong> {paymentReceipt.transactionId || 'Unavailable — provider verification required'}</p>
+              <p><strong>Payment observation:</strong> {paymentReceipt.timestamp}</p>
+              {#if completedBooking && 'id' in completedBooking && completedBooking.id}
+                <p><strong>Booking reference to verify:</strong> {completedBooking.id}</p>
+              {/if}
+              <p>Save this reference before leaving. Do not submit a second payment.</p>
+            </div>
+          {:else}
+            <button type="button" class="btn preset-filled-primary-500" onclick={handleBack}>
+              Try Again
+            </button>
+          {/if}
         </div>
       {/if}
     </main>
