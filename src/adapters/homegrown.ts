@@ -68,6 +68,14 @@ export type HomegrownAdapterSchemaProvider =
   | (() => Promise<HomegrownAdapterSchemas>);
 
 export interface HomegrownAdapterConfig {
+  /**
+   * Trusted server-configured UUID written to new clients, bookings, and holds.
+   * Never derive this from BookingRequest or other untrusted input. The consumer
+   * must bind the same identity to withDb/withTransaction and restricted-role RLS;
+   * this value does not scope reads, install policies, or establish isolation.
+   * Omission preserves existing consumer-owned insert/default behavior.
+   */
+  tenantId?: string;
   /** Drizzle database instance (lazy, to avoid import-time DB connection). */
   getDb?: () => Promise<any>;
   /**
@@ -190,12 +198,25 @@ const isUniqueViolation = (e: unknown): boolean => {
 // Factory
 // ---------------------------------------------------------------------------
 
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export const createHomegrownAdapter = (
   config: HomegrownAdapterConfig,
 ): SchedulingAdapter => {
   if (!config.getDb && !config.withDb) {
     throw new Error("HomegrownAdapter requires either getDb or withDb");
   }
+  const tenantId = config.tenantId;
+  if (
+    tenantId !== undefined &&
+    (typeof tenantId !== "string" || !UUID_PATTERN.test(tenantId))
+  ) {
+    throw new Error("HomegrownAdapter tenantId must be a UUID when supplied");
+  }
+  // Capture the validated server binding once; later config/request mutations
+  // cannot redirect an adapter instance's insert identity.
+  const tenantValues = tenantId === undefined ? {} : { tenantId };
 
   const tz = config.timezone ?? "America/New_York";
   const interval = config.slotInterval ?? 30;
@@ -380,10 +401,7 @@ export const createHomegrownAdapter = (
     const { eq, or } = await import("drizzle-orm");
 
     // UUID regex — only compare against UUID column if input looks like one
-    const isUuid =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-        serviceId,
-      );
+    const isUuid = UUID_PATTERN.test(serviceId);
 
     const condition = isUuid
       ? or(
@@ -995,6 +1013,7 @@ export const createHomegrownAdapter = (
           const [inserted] = await d
             .insert(slotReservations)
             .values({
+              ...tenantValues,
               datetime: start.toISOString(),
               duration: params.duration,
               expiresAt,
@@ -1118,6 +1137,7 @@ export const createHomegrownAdapter = (
             const [inserted] = await d
               .insert(bookingsTable)
               .values({
+                ...tenantValues,
                 confirmationCode,
                 serviceId: svc.id,
                 practitionerId: prac?.id,
@@ -1331,6 +1351,7 @@ export const createHomegrownAdapter = (
           const [row] = await d
             .insert(clientsTable)
             .values({
+              ...tenantValues,
               firstName: client.firstName,
               lastName: client.lastName,
               email: client.email,

@@ -12,6 +12,7 @@
  *   - Booking lifecycle (create → get → cancel/reschedule)
  *   - Reservation create/release
  *   - Provider lookup (solo practice pattern)
+ *   - Optional server tenant value propagation (not database/RLS isolation)
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -221,6 +222,9 @@ const createSequencedMockDb = (
 // Fixtures
 // ---------------------------------------------------------------------------
 
+const TRUSTED_TENANT_ID = "10000000-0000-4000-8000-000000000001";
+const OTHER_TENANT_ID = "10000000-0000-4000-8000-000000000002";
+
 const SERVICE_ROW = {
   id: "svc-uuid-1",
   name: "Deep Tissue Massage",
@@ -315,6 +319,17 @@ describe("HomegrownAdapter", () => {
         "HomegrownAdapter requires either getDb or withDb",
       );
     });
+
+    it.each(["", "not-a-uuid", `${TRUSTED_TENANT_ID} `])(
+      "rejects malformed server tenant identity before database access: %s",
+      (tenantId) => {
+        const getDb = vi.fn();
+        expect(() => createAdapter({ getDb, tenantId })).toThrow(
+          "HomegrownAdapter tenantId must be a UUID when supplied",
+        );
+        expect(getDb).not.toHaveBeenCalled();
+      },
+    );
 
     it("uses scoped database executor when provided", async () => {
       const mockDb = createMockDb();
@@ -564,12 +579,12 @@ describe("HomegrownAdapter", () => {
   // -------------------------------------------------------------------------
 
   describe("softHoldSlot", () => {
-    it("inserts an advisory soft hold and returns SlotSoftHold", async () => {
+    it.each([undefined, TRUSTED_TENANT_ID])("inserts an advisory soft hold and returns SlotSoftHold (tenantId=%s)", async (tenantId) => {
       const mockDb = createSequencedMockDb(
         [[], [], []], // occupied bookings, time blocks, active holds
         [[RESERVATION_ROW]],
       );
-      const adapter = createAdapter({ getDb: async () => mockDb });
+      const adapter = createAdapter({ getDb: async () => mockDb, tenantId });
 
       const result = await Effect.runPromise(
         adapter.softHoldSlot({
@@ -588,6 +603,9 @@ describe("HomegrownAdapter", () => {
         expiresAt: "2026-04-20T14:10:00.000Z",
         providerId: "prac-uuid-1",
       });
+      const values = mockDb.insert.mock.results[0].value.values.mock.calls[0][0];
+      if (tenantId === undefined) expect(values).not.toHaveProperty("tenantId");
+      else expect(values.tenantId).toBe(tenantId);
     });
 
     it("defaults expiration to 10 minutes when not specified", async () => {
@@ -686,7 +704,7 @@ describe("HomegrownAdapter", () => {
       expect(mockDb.update).toHaveBeenCalled();
     });
 
-    it("creates new client when email not found", async () => {
+    it.each([undefined, TRUSTED_TENANT_ID])("creates new client when email not found (tenantId=%s)", async (tenantId) => {
       const mockDb = createMockDb();
       // First select (find by email) returns empty
       mockDb._terminals.limit.mockResolvedValue([]);
@@ -695,7 +713,14 @@ describe("HomegrownAdapter", () => {
         { id: "client-uuid-new" },
       ]);
 
-      const adapter = createAdapter({ getDb: async () => mockDb });
+      const config = {
+        schemas: testSchemas,
+        defaultPractitionerHandle: "alex",
+        getDb: async () => mockDb,
+        tenantId,
+      };
+      const adapter = createHomegrownAdapter(config);
+      config.tenantId = OTHER_TENANT_ID;
 
       const result = await Effect.runPromise(
         adapter.findOrCreateClient(TEST_CLIENT),
@@ -703,6 +728,11 @@ describe("HomegrownAdapter", () => {
 
       expect(result).toEqual({ id: "client-uuid-new", isNew: true });
       expect(mockDb.insert).toHaveBeenCalled();
+      // The factory snapshots the binding; changing the original config cannot
+      // redirect it. This is a call-argument unit contract, not canonical PG proof.
+      const values = mockDb._chain.values.mock.calls[0][0];
+      if (tenantId === undefined) expect(values).not.toHaveProperty("tenantId");
+      else expect(values.tenantId).toBe(tenantId);
     });
   });
 
@@ -785,7 +815,7 @@ describe("HomegrownAdapter", () => {
   // -------------------------------------------------------------------------
 
   describe("createBooking", () => {
-    it("resolves service, finds client, gets practitioner, inserts booking", async () => {
+    it.each([undefined, TRUSTED_TENANT_ID])("resolves service, finds client, gets practitioner, inserts booking (tenantId=%s)", async (tenantId) => {
       // createBooking internally calls:
       //   1. idempotency pre-lookup (select, miss)
       //   2. resolveService (select)
@@ -807,15 +837,15 @@ describe("HomegrownAdapter", () => {
         ],
       );
 
-      const adapter = createAdapter({ getDb: async () => mockDb });
-      const result = await Effect.runPromise(
-        adapter.createBooking({
-          serviceId: "svc-uuid-1",
-          datetime: "2026-04-20T14:00:00.000Z",
-          client: TEST_CLIENT,
-          idempotencyKey: "idem-001",
-        }),
-      );
+      const adapter = createAdapter({ getDb: async () => mockDb, tenantId });
+      const request = {
+        serviceId: "svc-uuid-1",
+        datetime: "2026-04-20T14:00:00.000Z",
+        client: TEST_CLIENT,
+        idempotencyKey: "idem-001",
+        tenantId: OTHER_TENANT_ID, // Extra untrusted payload is not configuration.
+      };
+      const result = await Effect.runPromise(adapter.createBooking(request));
 
       expect(result.id).toBe("booking-uuid-1");
       expect(result.serviceId).toBe("svc-uuid-1");
@@ -824,6 +854,9 @@ describe("HomegrownAdapter", () => {
       expect(result.status).toBe("confirmed");
       expect(result.paymentStatus).toBe("pending");
       expect(result.client).toEqual(TEST_CLIENT);
+      const values = mockDb.insert.mock.results[0].value.values.mock.calls[0][0];
+      if (tenantId === undefined) expect(values).not.toHaveProperty("tenantId");
+      else expect(values.tenantId).toBe(tenantId);
     });
 
     it("fails when service not found during booking", async () => {

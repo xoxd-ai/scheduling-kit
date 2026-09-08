@@ -44,6 +44,16 @@ supplies trusted business identity and transaction-scoped database context.
 Never infer tenant identity from browser input. Exercise the canonical schema
 and its tenant requirements; a hand-written tenantless test schema is not proof.
 
+The additive `HomegrownAdapterConfig.tenantId` supplies a validated server UUID
+to new client, hold, and booking inserts. It is not part of `BookingRequest` and
+does not add tenant predicates or install RLS. Bind the same trusted identity
+to both existing database callbacks and actual restricted-role policies. Leaving
+the option absent preserves legacy consumer composition/defaults, not a claim
+that bare business-pg inserts succeed: canonical 0.1.1 has no tenant defaults.
+Unit insert-value checks establish only argument propagation; canonical schema,
+role/RLS, pool-scope reset, and cross-tenant read/write proof remain harness/GF
+gates. The optional transaction API is unchanged by this additive slice.
+
 Postgres is the sole authority for native bookings and bridge job/mutation
 receipts. Redis, memory caches, and Tempo may be rebuilt without losing accepted
 work or changing a command's disposition. Retire duplicate durable Redis lanes
