@@ -63,10 +63,13 @@ const renderDrawer = (
 };
 
 /** Walk the real drawer from service selection to the payment step. */
-const advanceToPaymentStep = async () => {
+const advanceToPaymentStep = async (providerName?: string) => {
   // Service step
   const serviceCard = (await screen.findByText('Consultation')).closest('button');
   await fireEvent.click(serviceCard!);
+  if (providerName) {
+    await fireEvent.click((await screen.findByText(providerName)).closest('button')!);
+  }
 
   // Datetime step (skipProvider: true jumps straight here)
   const dayButton = await screen.findByRole('button', { name: /June 30, available/ });
@@ -200,16 +203,40 @@ describe('HybridCheckoutDrawer payment routing', () => {
     expect(callbacks.onBookingComplete).not.toHaveBeenCalled();
   });
 
+  it.each([true, false])('can leave an idle Venmo checkout (eligible=%s) without creating an order', async (eligible) => {
+    const renderButton = vi.fn(async () => {});
+    vi.stubGlobal('paypal', {
+      FUNDING: { VENMO: 'venmo' },
+      Buttons: () => ({ render: renderButton, close: vi.fn(), isEligible: () => eligible }),
+    });
+    const callbacks = renderDrawer({
+      ...buildCapabilities([{ id: 'venmo', name: 'venmo', displayName: 'Venmo', available: true }]),
+      venmo: { available: true, clientId: 'synthetic', environment: 'sandbox' },
+    }, { onBookWithPaymentRef: vi.fn() });
+    await advanceToPaymentStep();
+    await selectPaymentOption('Venmo');
+    if (eligible) await waitFor(() => expect(renderButton).toHaveBeenCalled());
+    else expect(await screen.findByText('Venmo is not available in your browser or region.')).toBeInTheDocument();
+    await fireEvent.click(await screen.findByRole('button', { name: 'Choose a different payment method' }));
+    expect(await screen.findByText('Select Payment Method')).toBeInTheDocument();
+    expect(callbacks.onCreatePaymentOrder).not.toHaveBeenCalled();
+    expect(callbacks.onCapturePayment).not.toHaveBeenCalled();
+  });
+
   it.each([
     'callback failure', 'missing booking id', 'pending booking', 'missing capture id',
     'wrong amount', 'wrong currency', 'wrong processor', 'wrong service', 'wrong time',
     'same receipt', 'second capture', 'conflicting capture', 'confirmed', 'incumbent zero-dollar',
+    'native reference', 'encoded reference', 'other native capture', 'other encoded capture',
+    'native processor conflict', 'wrong provider', 'matching provider',
   ])('uses observed server receipts: %s', async (scenario) => {
     let approve: ((data: { orderID: string; payerID: string }) => Promise<void>) | undefined;
+    let createOrder: (() => Promise<string>) | undefined;
     vi.stubGlobal('paypal', {
       FUNDING: { VENMO: 'venmo' },
-      Buttons: (config: { onApprove: NonNullable<typeof approve> }) => {
+      Buttons: (config: { onApprove: NonNullable<typeof approve>; createOrder: NonNullable<typeof createOrder> }) => {
         approve = config.onApprove;
+        createOrder = config.createOrder;
         return { render: vi.fn(async () => {}), close: vi.fn(), isEligible: () => true };
       },
     });
@@ -222,6 +249,7 @@ describe('HybridCheckoutDrawer payment routing', () => {
       timestamp: '2026-06-01T16:00:00.000Z',
     };
     const replaysCapture = ['same receipt', 'second capture', 'conflicting capture'].includes(scenario);
+    const selectsProvider = ['wrong provider', 'matching provider'].includes(scenario);
     let releaseBooking: (() => void) | undefined;
     const bookingGate = replaysCapture ? new Promise<void>((resolve) => { releaseBooking = resolve; }) : Promise.resolve();
     const onBookWithPaymentRef = vi.fn(async () => {
@@ -234,6 +262,14 @@ describe('HybridCheckoutDrawer payment routing', () => {
         serviceName: service.name,
         datetime: scenario === 'wrong time' ? '2026-07-01T18:00:00.000Z' : SLOT_DATETIME,
         price: scenario === 'incumbent zero-dollar' ? 0 : service.price,
+        providerId: scenario === 'wrong provider' ? 'OTHER-PROVIDER' : 'PROVIDER-SYNTHETIC-1',
+        paymentMethod: scenario === 'native processor conflict' ? 'stripe' : undefined,
+        paymentRef: ({
+          'native reference': 'CAPTURE-SYNTHETIC-1',
+          'encoded reference': 'Synthetic notes [VENMO] Transaction: CAPTURE-SYNTHETIC-1',
+          'other native capture': 'CAPTURE-OTHER',
+          'other encoded capture': '[VENMO] Transaction: CAPTURE-OTHER',
+        } as Record<string, string>)[scenario],
       } };
     });
     const secondPayment = {
@@ -245,13 +281,25 @@ describe('HybridCheckoutDrawer payment routing', () => {
     const { onBookingComplete } = renderDrawer({
       ...buildCapabilities([{ id: 'venmo', name: 'venmo', displayName: 'Venmo', available: true }]),
       venmo: { available: true, clientId: 'synthetic', environment: 'sandbox' },
-    }, { onBookWithPaymentRef, onCapturePayment });
-    await advanceToPaymentStep();
+    }, {
+      onBookWithPaymentRef,
+      onCapturePayment,
+      onCreatePaymentOrder: vi.fn(async () => ({
+        id: 'ORDER-SYNTHETIC-1', amount: service.price, currency: service.currency,
+        status: 'pending' as const, processor: 'venmo', createdAt: payment.timestamp,
+      })),
+      skipProvider: !selectsProvider,
+      providers: [{ id: 'PROVIDER-SYNTHETIC-1', name: 'Synthetic Provider', timezone: 'America/New_York' }],
+    });
+    await advanceToPaymentStep(selectsProvider ? 'Synthetic Provider' : undefined);
     await selectPaymentOption('Venmo');
     await waitFor(() => expect(approve).toBeTypeOf('function'));
-    // Parent-owned close/switch controls cannot detach the active child flow.
+    // The child permits idle cancellation, then locks switching while its
+    // created order awaits approval/capture. Parent close stays guarded.
     expect(screen.queryByRole('button', { name: 'Close' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Choose a different payment method' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Choose a different payment method' })).toBeInTheDocument();
+    await createOrder!();
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Choose a different payment method' })).not.toBeInTheDocument());
     await approve!({ orderID: 'ORDER-SYNTHETIC-1', payerID: 'PAYER-SYNTHETIC-1' });
     if (replaysCapture) {
       await waitFor(() => expect(onBookWithPaymentRef).toHaveBeenCalledTimes(1));
@@ -259,7 +307,7 @@ describe('HybridCheckoutDrawer payment routing', () => {
       releaseBooking!();
     }
 
-    if (['confirmed', 'same receipt', 'incumbent zero-dollar'].includes(scenario)) {
+    if (['confirmed', 'same receipt', 'incumbent zero-dollar', 'native reference', 'encoded reference', 'matching provider'].includes(scenario)) {
       expect(await screen.findByText('Booking Confirmed!')).toBeInTheDocument();
       expect(onBookingComplete).toHaveBeenCalledWith(expect.objectContaining({ id: 'BOOKING-SYNTHETIC-1' }));
       expect(onBookWithPaymentRef).toHaveBeenCalledTimes(1);
