@@ -118,7 +118,8 @@
   let completedBooking = $state<Partial<Booking> | AcuityBookingData | undefined>(undefined);
   // Retain the original capture observation if booking cannot be confirmed.
   // This is a UI pointer for reconciliation, not a second durable payment store.
-  let paymentReceipt = $state<PaymentResult | undefined>(undefined);
+  let paymentObservations = $state<PaymentResult[]>([]);
+  const paymentReceipt = $derived(paymentObservations[0]);
 
   // Data loading
   let availableDates = $state<string[]>([]);
@@ -162,6 +163,9 @@
   const canGoBack = $derived(
     !paymentReceipt && step !== 'service' && step !== 'complete' && step !== 'processing' && step !== 'venmo-checkout' && step !== 'stripe-checkout'
   );
+  // The child components do not expose a common capture lifecycle. Keep parent
+  // close/switch controls out of their active checkout, not just after success.
+  const checkoutActive = $derived(processing || step === 'venmo-checkout' || step === 'stripe-checkout');
 
   // =============================================================================
   // HANDLERS
@@ -286,17 +290,34 @@
     }
   };
 
+  const paymentMatchesSelection = (payment: PaymentResult, processor: 'venmo' | 'stripe'): boolean =>
+    Boolean(selectedService && payment.success && payment.transactionId?.trim()
+      && payment.processor === processor
+      && payment.metadata?.status !== 'pending_collection'
+      && Number.isSafeInteger(payment.amount) && payment.amount >= 0
+      && payment.amount === selectedService.price
+      && payment.currency.toUpperCase() === selectedService.currency.toUpperCase());
+
   const handleCapturedPayment = async (result: PaymentResult, processor: 'venmo' | 'stripe') => {
-    // Deduplicate SDK callbacks and retain the original receipt even if the
-    // consumer callback disappears or the selected form state is unavailable.
-    if (paymentReceipt) return;
-    paymentReceipt = result;
+    // Deduplicate only the same observation. A different transaction or a
+    // contradictory disposition must remain visible, never replace/disappear.
+    if (paymentObservations.some((observed) =>
+      observed.processor === result.processor && observed.transactionId === result.transactionId
+      && observed.success === result.success && observed.amount === result.amount
+      && observed.currency === result.currency && observed.metadata?.status === result.metadata?.status
+    )) return;
+    paymentObservations = [...paymentObservations, result];
+    if (paymentObservations.length > 1) {
+      errorMessage = 'Multiple or conflicting payment observations require reconciliation. Do not pay again. Contact the business with every reference below.';
+      step = 'error';
+      return;
+    }
     step = 'processing';
     processing = true;
 
     try {
-      if (!result.success || !result.transactionId?.trim() || result.metadata?.status === 'pending_collection') {
-        throw new Error('Payment capture needs verification.');
+      if (!paymentMatchesSelection(result, processor)) {
+        throw new Error('The payment does not match the selected checkout.');
       }
       if (!selectedService || !clientInfo || !selectedDatetime || !onBookWithPaymentRef) {
         throw new Error('The booking command is unavailable.');
@@ -309,9 +330,17 @@
         paymentProcessor: processor,
       });
       completedBooking = booking;
-      if (!booking.id?.trim() || booking.status !== 'confirmed') {
-        throw new Error('The server did not return a confirmed booking receipt.');
+      // Existing receipt fields must bind to this selection and capture. This
+      // checks consistency, not provider authenticity or business/attempt custody.
+      if (paymentObservations.length !== 1 || !booking.id?.trim() || booking.status !== 'confirmed'
+        || booking.serviceId !== selectedService.id
+        || !Number.isFinite(Date.parse(selectedDatetime))
+        || !booking.datetime || Date.parse(booking.datetime) !== Date.parse(selectedDatetime)
+        || (selectedProvider && booking.providerId !== selectedProvider.id)) {
+        throw new Error('The server booking receipt does not match the checkout and payment.');
       }
+      // Do not equate incumbent paid/price with our capture: coupon-backed
+      // transition bookings and native bookings have different receipt shapes.
       step = 'complete';
     } catch {
       // Do not offer a payment retry or discard the observation: capture and
@@ -329,12 +358,12 @@
   const handleStripeSuccess = (result: PaymentResult) => handleCapturedPayment(result, 'stripe');
 
   const handleVenmoCancel = () => {
-    if (paymentReceipt) return;
+    if (paymentReceipt || processing) return;
     step = 'payment';
   };
 
   const handleStripeCancel = () => {
-    if (paymentReceipt) return;
+    if (paymentReceipt || processing) return;
     stripeIntent = undefined;
     step = 'payment';
   };
@@ -369,6 +398,7 @@
   };
 
   const handleClose = () => {
+    if (checkoutActive) return;
     open = false;
     onClose?.();
   };
@@ -385,7 +415,7 @@
     selectedPayment = undefined;
     errorMessage = undefined;
     completedBooking = undefined;
-    paymentReceipt = undefined;
+    paymentObservations = [];
     stripeIntent = undefined;
     availableDates = [];
     availableSlots = [];
@@ -401,7 +431,7 @@
   onOpenChange={(details: { open: boolean }) => {
     if (!details.open) handleClose();
   }}
-  closeOnInteractOutside={true}
+  closeOnInteractOutside={!checkoutActive}
 >
   <Portal>
     <Dialog.Backdrop class="fixed inset-0 z-50 bg-black/50 modal-backdrop" />
@@ -417,9 +447,11 @@
             {/if}
             <Dialog.Title class="text-lg font-semibold">{stepTitles[step]}</Dialog.Title>
           </div>
-          <Dialog.CloseTrigger class="btn btn-sm preset-tonal" aria-label="Close">
-            ✕
-          </Dialog.CloseTrigger>
+          {#if !checkoutActive}
+            <Dialog.CloseTrigger class="btn btn-sm preset-tonal" aria-label="Close">
+              ✕
+            </Dialog.CloseTrigger>
+          {/if}
         </header>
 
         <!-- Progress Bar -->
@@ -548,13 +580,6 @@
             />
           {/if}
 
-          <button
-            type="button"
-            class="btn btn-sm preset-tonal mt-4 w-full"
-            onclick={handleVenmoCancel}
-          >
-            Choose a different payment method
-          </button>
         </div>
 
       {:else if step === 'stripe-checkout'}
@@ -607,9 +632,9 @@
                 <p><strong>Date:</strong> {completedBooking.date} at {completedBooking.time}</p>
                 <p><strong>Confirmation #:</strong> {completedBooking.appointmentId}</p>
               {:else}
-                <!-- Local Booking -->
-                <p><strong>Service:</strong> {selectedService?.name}</p>
-                <p><strong>Date:</strong> {selectedDatetime ? new Date(selectedDatetime).toLocaleString() : ''}</p>
+                <!-- Server booking receipt, not a requested/synthetic booking -->
+                <p><strong>Service:</strong> {completedBooking.serviceName ?? completedBooking.serviceId}</p>
+                <p><strong>Date:</strong> {completedBooking.datetime ? new Date(completedBooking.datetime).toLocaleString(undefined, { timeZone: timezone }) : ''}</p>
                 <p><strong>Payment:</strong> {selectedPayment}</p>
               {/if}
             </div>
@@ -642,9 +667,14 @@
           <p class="text-surface-600-400 mb-6">{errorMessage || 'An error occurred.'}</p>
           {#if paymentReceipt}
             <div class="payment-reconciliation text-left rounded-container bg-surface-100-900 p-4" role="status">
-              <p><strong>Payment processor:</strong> {paymentReceipt.processor}</p>
-              <p><strong>Payment reference:</strong> {paymentReceipt.transactionId || 'Unavailable — provider verification required'}</p>
-              <p><strong>Payment observation:</strong> {paymentReceipt.timestamp}</p>
+              {#each paymentObservations as observation}
+                <div class="mb-3">
+                  <p><strong>Payment processor:</strong> {observation.processor}</p>
+                  <p><strong>Payment reference:</strong> {observation.transactionId || 'Unavailable — provider verification required'}</p>
+                  <p><strong>Payment observation:</strong> {observation.timestamp}</p>
+                  <p><strong>Observed amount:</strong> {observation.amount} minor units {observation.currency}</p>
+                </div>
+              {/each}
               {#if completedBooking && 'id' in completedBooking && completedBooking.id}
                 <p><strong>Booking reference to verify:</strong> {completedBooking.id}</p>
               {/if}

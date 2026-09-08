@@ -200,7 +200,11 @@ describe('HybridCheckoutDrawer payment routing', () => {
     expect(callbacks.onBookingComplete).not.toHaveBeenCalled();
   });
 
-  it.each(['callback failure', 'missing booking id', 'pending booking', 'missing capture id', 'confirmed'])('uses observed server receipts: %s', async (scenario) => {
+  it.each([
+    'callback failure', 'missing booking id', 'pending booking', 'missing capture id',
+    'wrong amount', 'wrong currency', 'wrong processor', 'wrong service', 'wrong time',
+    'same receipt', 'second capture', 'conflicting capture', 'confirmed', 'incumbent zero-dollar',
+  ])('uses observed server receipts: %s', async (scenario) => {
     let approve: ((data: { orderID: string; payerID: string }) => Promise<void>) | undefined;
     vi.stubGlobal('paypal', {
       FUNDING: { VENMO: 'venmo' },
@@ -212,30 +216,53 @@ describe('HybridCheckoutDrawer payment routing', () => {
     const payment: PaymentResult = {
       success: true,
       transactionId: scenario === 'missing capture id' ? '' : 'CAPTURE-SYNTHETIC-1',
-      processor: 'venmo',
-      amount: service.price,
-      currency: service.currency,
+      processor: scenario === 'wrong processor' ? 'stripe' : 'venmo',
+      amount: scenario === 'wrong amount' ? service.price - 1 : service.price,
+      currency: scenario === 'wrong currency' ? 'CAD' : service.currency,
       timestamp: '2026-06-01T16:00:00.000Z',
     };
+    const replaysCapture = ['same receipt', 'second capture', 'conflicting capture'].includes(scenario);
+    let releaseBooking: (() => void) | undefined;
+    const bookingGate = replaysCapture ? new Promise<void>((resolve) => { releaseBooking = resolve; }) : Promise.resolve();
     const onBookWithPaymentRef = vi.fn(async () => {
+      await bookingGate;
       if (scenario === 'callback failure') throw new Error('synthetic timeout');
       return { booking: {
         id: scenario === 'missing booking id' ? undefined : 'BOOKING-SYNTHETIC-1',
         status: scenario === 'pending booking' ? 'pending' as const : 'confirmed' as const,
+        serviceId: scenario === 'wrong service' ? 'OTHER-SERVICE' : service.id,
+        serviceName: service.name,
+        datetime: scenario === 'wrong time' ? '2026-07-01T18:00:00.000Z' : SLOT_DATETIME,
+        price: scenario === 'incumbent zero-dollar' ? 0 : service.price,
       } };
     });
+    const secondPayment = {
+      ...payment,
+      transactionId: scenario === 'second capture' ? 'CAPTURE-SYNTHETIC-2' : payment.transactionId,
+      amount: scenario === 'conflicting capture' ? payment.amount + 1 : payment.amount,
+    };
+    const onCapturePayment = vi.fn().mockResolvedValueOnce(payment).mockResolvedValue(secondPayment);
     const { onBookingComplete } = renderDrawer({
       ...buildCapabilities([{ id: 'venmo', name: 'venmo', displayName: 'Venmo', available: true }]),
       venmo: { available: true, clientId: 'synthetic', environment: 'sandbox' },
-    }, { onBookWithPaymentRef, onCapturePayment: vi.fn(async () => payment) });
+    }, { onBookWithPaymentRef, onCapturePayment });
     await advanceToPaymentStep();
     await selectPaymentOption('Venmo');
     await waitFor(() => expect(approve).toBeTypeOf('function'));
+    // Parent-owned close/switch controls cannot detach the active child flow.
+    expect(screen.queryByRole('button', { name: 'Close' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Choose a different payment method' })).not.toBeInTheDocument();
     await approve!({ orderID: 'ORDER-SYNTHETIC-1', payerID: 'PAYER-SYNTHETIC-1' });
+    if (replaysCapture) {
+      await waitFor(() => expect(onBookWithPaymentRef).toHaveBeenCalledTimes(1));
+      await approve!({ orderID: 'ORDER-SYNTHETIC-2', payerID: 'PAYER-SYNTHETIC-1' });
+      releaseBooking!();
+    }
 
-    if (scenario === 'confirmed') {
+    if (['confirmed', 'same receipt', 'incumbent zero-dollar'].includes(scenario)) {
       expect(await screen.findByText('Booking Confirmed!')).toBeInTheDocument();
       expect(onBookingComplete).toHaveBeenCalledWith(expect.objectContaining({ id: 'BOOKING-SYNTHETIC-1' }));
+      expect(onBookWithPaymentRef).toHaveBeenCalledTimes(1);
       return;
     }
     expect(await screen.findByText(/Do not pay again/)).toBeInTheDocument();
@@ -243,12 +270,21 @@ describe('HybridCheckoutDrawer payment routing', () => {
     expect(screen.queryByRole('button', { name: 'Go back' })).not.toBeInTheDocument();
     expect(screen.queryByText('Booking Confirmed!')).not.toBeInTheDocument();
     expect(onBookingComplete).not.toHaveBeenCalled();
-    if (scenario === 'missing capture id') {
+    if (['missing capture id', 'wrong amount', 'wrong currency', 'wrong processor'].includes(scenario)) {
       expect(onBookWithPaymentRef).not.toHaveBeenCalled();
-      expect(screen.getByText(/Unavailable — provider verification required/)).toBeInTheDocument();
+      if (scenario === 'missing capture id') {
+        expect(screen.getByText(/Unavailable — provider verification required/)).toBeInTheDocument();
+      }
     } else {
-      expect(screen.getByText(/CAPTURE-SYNTHETIC-1/)).toBeInTheDocument();
+      expect(screen.getAllByText(/CAPTURE-SYNTHETIC-1/).length).toBeGreaterThan(0);
       expect(onBookWithPaymentRef).toHaveBeenCalledWith(expect.objectContaining({ paymentRef: 'CAPTURE-SYNTHETIC-1' }));
+      expect(onBookWithPaymentRef).toHaveBeenCalledTimes(1);
+      if (scenario === 'second capture') {
+        expect(screen.getByText(/CAPTURE-SYNTHETIC-2/)).toBeInTheDocument();
+      }
+      if (scenario === 'conflicting capture') {
+        expect(screen.getAllByText(/CAPTURE-SYNTHETIC-1/)).toHaveLength(2);
+      }
     }
   });
 });
