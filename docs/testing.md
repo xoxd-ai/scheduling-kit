@@ -5,7 +5,12 @@ and Playwright for browser E2E coverage. The package is Effect-based, so the
 test helpers and examples in this tree assert on `Effect` success and failure
 rather than fp-ts `Either` values.
 
-## Test commands
+## Existing test inventory (remote-only)
+
+Script names below identify existing internal configuration, not agent-local
+commands. Never run tests/builds/Bazel/Nix/dev servers on Neo. Use registered
+Bazel targets through admitted GF; missing registration/admission is an evidence
+gap, not permission to execute the package-manager script directly.
 
 | Lane | Command | Primary paths | Notes |
 | --- | --- | --- | --- |
@@ -62,16 +67,17 @@ typed `SchedulingError` contract exposed by the public API.
 
 Live tests are intentionally gated and should never become the default CI path.
 
-```bash
-cp .env.test.local.example .env.test.local
-RUN_LIVE_TESTS=true pnpm test:live
-```
-
-Keep those runs read-only unless a specific operator lane is being defined and
-reviewed.
+Live runs require an operator-only scratch scheduler, explicit scope, and the
+admitted remote lane. A development task authorizes no client account or real
+payment. Keep runs read-only unless synthetic mutations are explicitly scoped.
 
 ## Validation expectations
 
-- `pnpm test:unit`, `pnpm test:integration`, and `pnpm test:component` are normal local validation lanes
-- `pnpm test:e2e` is appropriate when changing interactive browser behavior
-- `pnpm test:live` is for intentional provider-state checks only
+- Exercise changed behavior in existing tests; avoid a parallel test-only state
+  machine or redundant source-string assertions as runtime proof.
+- Native integration uses canonical business-pg and trusted business scope; a
+  hand-built tenantless schema proves only its own fixture.
+- Record exact source SHA, remote invocation, selection, results, and skips.
+  Source review is not a green test result.
+- Provider observations, source tests, release receipts, and adoption are
+  separate categories; see [architecture](architecture.md).

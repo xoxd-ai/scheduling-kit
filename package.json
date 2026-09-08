@@ -182,7 +182,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Jesssullivan/scheduling-kit.git"
+    "url": "git+https://github.com/tinyland-inc/scheduling-kit.git"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

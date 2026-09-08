@@ -24,8 +24,8 @@ Generated from `package.json`, `MODULE.bazel`, `BUILD.bazel`,
 | Field | Value |
 | --- | --- |
 | Bzlmod module | `tummycrypt_scheduling_kit` |
-| Bazel registry | https://raw.githubusercontent.com/tinyland-inc/bazel-registry/main |
-| Source repository | https://github.com/Jesssullivan/scheduling-kit.git |
+| Bazel registry | https://raw.githubusercontent.com/tinyland-inc/bazel-registry/cfbb16e6ae957da9e8a25b7418a7871ec815e0a1 |
+| Source repository | https://github.com/tinyland-inc/scheduling-kit.git |
 | CI purpose | GF validation only |
 | CI template | `tinyland-inc/ci-templates@v3.1.0` |
 | CI runner mode | `repo_owned` |

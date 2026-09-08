@@ -1,43 +1,24 @@
 # Build And Release
 
-## Local bootstrap
+## Remote execution only
 
-The intended fresh-machine path is:
-
-```bash
-direnv allow
-pnpm install
-```
-
-If you are not using `direnv`, enter the same environment with:
-
-```bash
-nix develop
-```
-
-The dev shell provides:
-
-- Node 22
-- pnpm
-- Bazel through a Bazelisk wrapper pinned by `.bazelversion`
-- MkDocs plus Material
-- lightweight repo tooling such as `actionlint`
+Agents never run builds, tests, Bazel/Bazelisk, Nix, development servers, or
+containers on Neo. The flake, `.envrc`, and `.bazelversion` describe pinned
+tooling, not permission for local execution. Validation belongs to the admitted
+GF/ci-templates contract; this package owns no runners or placement policy.
 
 ## Authority model
 
-This repo keeps two deliberately different surfaces:
+Bazel/Bzlmod is the sole graph and artifact authority. Lockfile translation,
+`npm_translate_lock`, and package-manager invocations inside build rules are
+implementation mechanics, not extra delivery or operator lanes.
 
-1. `pnpm` remains the local package-manager and script interface.
-2. Bazel defines and builds the JavaScript package artifact validated by CI.
-
-That split is intentional. Nix bootstraps the tools, Bazel models the artifact
-graph, and the shared `js-bazel-package` workflow validates
-`./bazel-bin/pkg` on GF.
-
-The active workflow contract uses repo-owned runner registration with Tinyland
-capability labels. It has read-only permissions and no package provider
-coordinate or credential. This repository has no publication workflow. See the
-delivery doctrine below.
+As of 2026-09-08 the checked-in workflow still calls the historical
+`js-bazel-package.yml@v3.1.0` cache-backed lane. This is source, not current GF
+admission or exact-head validation evidence. Do not treat that historical lane
+as a prohibition on current reviewed GF architecture, guess a replacement
+template/version, or add a hosted/local fallback. This repo has no publication
+workflow. Admission and package correctness are separate evidence gates.
 
 ## Delivery doctrine
 
@@ -53,34 +34,14 @@ Package delivery follows one source of truth:
 4. npmjs and GitHub Packages are historical surfaces only. They are not current
    delivery evidence, gates, or supported consumer aliases.
 
-## Bazel Cache Contract
+## Validation evidence
 
-Local Bazel use defaults to the repo-local disk cache in `.bazelrc`:
-
-```bash
-bazel build //:pkg
-bazel test //:test
-```
-
-Contributor machines can opt into a remote cache by adding a private
-`user.bazelrc`; this repository intentionally keeps private cache topology out
-of public source. CI remote-cache behavior is owned by the shared
-`js-bazel-package` workflow and its GF runner environment. The public contract
-is that CI validates and archives the Bazel package artifact from
-`./bazel-bin/pkg`; it does not publish that artifact to a package provider.
-
-## Core commands
-
-```bash
-pnpm check:release-metadata
-pnpm check
-pnpm lint
-pnpm test:unit
-pnpm test:integration
-pnpm build
-pnpm exec publint
-bazel build //:pkg
-```
+Use registered Bazel targets through the admitted GF contract. Missing target
+registration or admission is an evidence gap, not permission to execute an
+internal package-manager script directly. Cache artifacts, historical receipts,
+and a skipped database suite do not establish current native lifecycle proof.
+Record the exact SHA and actual remote results; do not poll or repeatedly
+dispatch an unadmitted lane. Keep private execution topology out of public docs.
 
 ## Release metadata guardrails
 
@@ -109,23 +70,12 @@ delivery truth.
 
 ## Docs and LLM surfaces
 
-Derived docs are generated from repo metadata:
-
-```bash
-pnpm docs:generate
-pnpm docs:check
-pnpm docs:serve
-```
-
-Those commands regenerate:
+`scripts/generate-doc-artifacts.mjs` derives these from repo metadata:
 
 - `docs/generated/package-surface.md`
 - `docs/generated/release-metadata.md`
 - `llms.txt`
 
-The docs site can also be built as a Nix derivation:
-
-```bash
-nix build .#docs
-nix flake check
-```
+When generated surfaces change, update their source/generator, not a hand-edited
+alternate truth. Generation and rendering belong to remote validation; no local
+documentation server is authorized.

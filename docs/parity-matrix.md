@@ -1,8 +1,16 @@
 # SchedulingAdapter Parity Matrix
 
+> **REALITY — 2026-09-08:** historical source/test evidence compiled 2026-07-03
+> and amended later, not current production lanes, client adoption, runtime
+> availability, or feature parity. The September [architecture](architecture.md)
+> supersedes adopter-first framing. Clients are not platform QA targets. `REAL`
+> below means source with a cited test, possibly mocked, not deployed/verified.
+> Payment stamping is non-atomic; native transactions depend on composition;
+> bridge replay tests do not prove live session or journal-failure correctness.
+
 Per-method truth for the `SchedulingAdapter` contract
-([`src/adapters/types.ts`](https://github.com/Jesssullivan/scheduling-kit/blob/main/src/adapters/types.ts))
-across the three production lanes. Every claim cites a test ID
+([`src/adapters/types.ts`](https://github.com/tinyland-inc/scheduling-kit/blob/main/src/adapters/types.ts))
+across three historically reviewed code paths. Claims cite a test ID
 (`file :: test name`), not an adjective. Where no test exists, the cell says
 so — see [Evidence gaps](#evidence-gaps).
 
@@ -121,15 +129,15 @@ So resume replays from the last journaled segment boundary and re-runs the
 open segment; reads re-run freely, submits are gated by a confirmation probe,
 and a boundary-free journal honestly degenerates to a full re-run.
 
-## Ascension narrative
+## Historical adopter source references (not current adoption claims)
 
-The kit's stated adopter arc (`AGENTS.md`): keep the live business running →
+The historical adopter arc: keep the live business running →
 introduce the middleware-backed off-ramp → move toward homegrown when the
 business is ready. Concretely the rungs are **acuity (vendor-hosted)** →
 **acuity + bridge (off-ramp)** → **homegrown (destination)**. Adopter truth as
 of the baseline commits:
 
-| Adopter | Rung(s) in production | Evidence |
+| Historical consumer reference | Modes selected in source | Historical evidence |
 | --- | --- | --- |
 | **MassageIthaca (MI)** | All three modes, selected at runtime: `resolveBackend` picks `homegrown` \| `acuity` (`src/lib/server/scheduling-backend.ts:43`), and acuity splits into **local** (in-process Playwright) vs **remote** (bridge proxy when `SCHEDULING_BRIDGE_URL` is set; K8s lanes must be remote) in `src/lib/server/scheduling.ts:4–16`. Prod/beta are pinned to acuity; alpha runs homegrown. | `src/tests/scheduling-runtime.test.ts` :: `forces beta and prod onto acuity regardless of env-selected backend`; :: `keeps alpha on explicit homegrown while generated previews use env selection`; :: `refuses local Acuity browser fallback in K8s environments` (MI `github/main` @ `7b9c910`) |
 | **software.tinyland.dev-booking** | Homegrown only — born on the destination rung; no Acuity, no bridge, by policy. | `src/lib/server/scheduling.ts:3–15` ("Backend: homegrown only. No Acuity, no scheduling-bridge…"); live proof `e2e/book.spec.ts` :: `a real booking lands in the calendar with a captured event UID` (proven run 2026-07-02T01:12Z, event UID `ca276443-2241-4e9c-9bea-1af4f66a71c0`, confirmation `MI-YGLB5Q`) |

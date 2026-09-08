@@ -1,33 +1,56 @@
 # scheduling-kit Agent Notes
 
+> **REALITY - 2026-08-28:** `tinyland-inc/scheduling-kit` is the sole
+> repository of record. The former `Jesssullivan/scheduling-kit` repository
+> was transferred into the organization and now redirects here. The divergent
+> stale org mirror is private and archived as
+> `tinyland-inc/scheduling-kit-legacy-mirror`; it has no source, CI,
+> dependency, tag, or release authority.
+
 This file is the operating brief for AI agents and LLMs working in `@tummycrypt/scheduling-kit`.
 
-## GloriousFlywheel Cache Enrollment (cache-first)
+## Execution authority and current CI gap
 
-`scheduling-kit` enrolls in the GloriousFlywheel shared Bazel cache (cache-first,
-TIN-1997 Option D; pilot tracked as TIN-2110).
+> **REALITY — 2026-09-08:** the checked-in workflow still calls the historical
+> `ci-templates@v3.1.0` cache-backed package lane. That source fact is not current
+> GF admission, a current execution contract, or an exact-head validation receipt.
+> The former cache-first/no-REAPI instruction is superseded; do not use it to
+> resist or invent the estate's GF convergence.
 
-- **Do NOT** create runners or a bespoke cache instance. Route everything through
-  the shared `tinyland-inc/ci-templates` surface and the existing GloriousFlywheel
-  substrate.
-- **Do NOT** run raw `bazel build` as validation enrollment. A green build on the
-  `tinyland-nix` runner with only `--disk_cache` is **NOT** cache-backed and is
-  not enrollment.
-- Attach to the shared substrate via the cache-backed lane: the ci-templates
-  `js-bazel-package.yml` `cache_backed: true` input, which runs the fail-closed
-  contract checker and then `--config=ci-cached --remote_cache=$BAZEL_REMOTE_CACHE
-  --remote_upload_local_results=false`. The cache endpoint is injected at runtime
-  by the in-cluster `nix-setup` (resolved from cluster DNS); it is never baked
-  into `.bazelrc`.
-- Self-verify with `scripts/cache-attachment-contract.sh --strict` (or
-  `nix develop --command just cache-contract-strict`). The checker fails closed
-  on unset/placeholder/non-grpc endpoints, so a misconfigured lane surfaces the
-  BLOCKED state instead of silently building local-only.
-- REAPI / remote executor is **out of scope** (cache-first only). Never wire
-  `--remote_executor` or `--config=executor-backed`.
-- Cache attach is **not** org-migration closure. A green cache-backed build does
-  not close GF#412 / TIN-1516; org-migration vs widened-ARC-scope remains a
-  separate operator decision.
+- All execution belongs to GloriousFlywheel and its owner overlays, through
+  `tinyland-inc/ci-templates`. This package owns no runners or cluster topology.
+- Never run local builds, tests, Bazel/Bazelisk, Nix, development servers, or
+  containers on Neo. Do not introduce a hosted-runner or local fallback.
+- Adopt only the reviewed, admitted GF/template contract. Do not guess a newer
+  workflow version, migrate infrastructure here, or describe source enrollment
+  as runtime proof. Report missing admission as a separate evidence gate.
+- Keep historical cache receipts as history; they do not prove the native
+  scheduling lifecycle or qualify a new source head.
+
+## Ratified flagship boundary (2026-09-07; recorded 2026-09-08)
+
+The operator's scheduling-system interview supersedes adopter-first completion
+claims. The implementation contract is [Flagship architecture](docs/architecture.md).
+Linear TIN-2764 carries the programme and evidence audit; dates belong in Linear.
+
+- Build a FOSS, self-hosted stateful replacement, not only a migration UI.
+  Design solo appointments, teams/resources, and capacity events together;
+  prove the native solo lifecycle first using synthetic, operator-only data.
+- A business owns its app, Postgres, secrets, and backups through its overlay.
+  Postgres is the durable authority; Redis and Tempo are disposable projections.
+  Reuse `tinyland-business-pg`, calendar, forms, and existing BCR modules.
+- Bridge discovery is dynamic and runtime-verified, not a manually frozen list
+  of provider DOM IDs. Browser automation stays in scheduling-bridge;
+  computer-use is development/QA assistance, never the customer runtime.
+- Payment and booking are separate receipts. Preserve automated PayPal-backed
+  Venmo and direct Venmo awaiting staff verification; never invent a booking,
+  assume a capture, or mark a pending collection paid.
+- Intake is agnostic MVP configuration and explicit consent. SOAP workflows and
+  HIPAA/compliance claims are excluded from alpha and beta; architecture is not
+  an audit or certification. No client participates in platform QA.
+- These are accepted design constraints, not claims that the current release
+  implements them. No client adoption, provider parity, deployment readiness,
+  or performance SLO follows from a source-only or mock-test result.
 
 ## Repo Role
 
@@ -54,7 +77,7 @@ For browser automation and remote Acuity scraping, use
 
 ## Strategic Goal
 
-This package is the reusable migration layer for businesses moving away from
+This package is the reusable stateful scheduling system for businesses moving away from
 Acuity, GlossGenius, and similar closed platforms toward a controlled path:
 
 1. keep the live business running
@@ -80,7 +103,8 @@ Active threads:
 Closed but still relevant context:
 
 - `TIN-101` completed the mini sprint for toolchain authority and hermetic package convergence
-- `TIN-103` closed the release-authority ambiguity for `Jesssullivan/scheduling-kit`
+- `TIN-103` records the historical personal-repository authority through
+  `0.11.1`; the 2026-08-28 transfer supersedes that repository-location ruling
 - `TIN-104` was canceled as a duplicate during that convergence work
 - `TIN-165` is done: the tinyland Bazel registry is the package delivery SSOT
 - `TIN-3092` is done: the registry carries the immutable scheduling-kit
@@ -91,8 +115,10 @@ Closed but still relevant context:
 
 Current operational truth:
 
-- local development should default to `jesssullivan/main`
-- that branch is the current functional release line
+- local development and every source change default to `origin/main`, where
+  `origin` is `https://github.com/tinyland-inc/scheduling-kit.git`
+- this org branch is the sole functional source and release line; the old
+  personal URL is a redirect, never a second remote authority
 - current released version is `tummycrypt_scheduling_kit@0.11.1`: source commit
   and lightweight tag `9a00ee387afe1759ebba0c0a67e9246d84b1aa37`,
   GitHub Release `v0.11.1`, and append-only registry receipt
@@ -106,19 +132,17 @@ Current operational truth:
 - `#73` remains open only for explicit historical release-surface
   backfill/documentation around older `0.7.1` / `0.7.2` gaps; it cannot make a
   provider package a current delivery authority
-- `tinyland-inc/origin/main` is now a downstream mirror/validation surface,
-  not an equally authoritative release surface
+- `tinyland-inc/scheduling-kit-legacy-mirror` is private, archived, and
+  fetch-only evidence; never build, merge, publish, tag, or depend on it
 - source metadata, git tags, GitHub Releases, and append-only BCR entries are
   distinct evidence; only the registry entry delivers a current module
 
 ## Build Truth
 
-There are **two** build surfaces in this repo:
-
-1. `pnpm` remains the package-manager and script interface for local work
-2. Bazel defines and builds the JavaScript package artifact validated by CI
-
-Do not confuse them.
+Bazel/Bzlmod is the sole package graph and artifact authority. `pnpm-lock.yaml`,
+`npm_translate_lock`, and any package-manager invocation inside Bazel remain
+dependency-resolution/build mechanics only. They are not agent front doors,
+delivery lanes, or release authority.
 
 The repo flake and `.envrc` exist to make those surfaces reproducibly available
 from a fresh machine. They are bootstrap tools, not a second packaging
@@ -126,20 +150,14 @@ authority.
 
 ### Canonical validation and delivery path
 
-Today, the functional validation path is driven by:
+The checked-in historical workflow calls `js-bazel-package` and names Bazel
+targets including `//:pkg` and output `./bazel-bin/pkg`. This inventory is not
+current admission or proof that those targets ran. The required acceptance
+evidence is exact-head Bazel/Bzlmod validation through the reviewed, admitted
+GF contract. This repo has no package-publication workflow.
 
-- the shared `js-bazel-package` GitHub Actions workflow
-- metadata, typecheck, lint, test, and build commands invoked through pnpm
-- Bazel targets including `//:pkg`
-- package output from `./bazel-bin/pkg`
-- GF validation only; this repo has no package-publication workflow
-
-And, right now, the functional release repo is:
-
-- `Jesssullivan/scheduling-kit`
-
-Do not silently assume the `tinyland-inc` remote is equivalent just because it
-still exists.
+The functional source and release repository is
+`tinyland-inc/scheduling-kit`. No second release remote exists.
 
 ### Bazel role
 
@@ -178,20 +196,10 @@ Key points:
 
 ### CI
 
-The current CI validates on Node `20` and `22`.
-
-Primary checks:
-
-- `pnpm check`
-- `pnpm lint`
-- `pnpm test:unit`
-- `pnpm test:integration`
-- `pnpm build`
-- `publint`
-
-Typecheck/lint may be tolerated temporarily in CI if they are marked
-`continue-on-error`, but that should not be treated as a steady-state quality
-bar.
+Agent validation runs only on the repository-managed GF workflow. Never run
+build, test, Bazel, Nix, a development server, or a container on Neo. Completion
+evidence is an exact-head GF receipt over the ruled Bazel targets; a package
+manager command is never substitute proof.
 
 ### Delivery
 
@@ -205,9 +213,9 @@ Delivery doctrine:
   coordinates, credentials, publish permissions, consumer guidance, or a
   publish workflow back to this repository
 
-Release metadata changes should be made against the functional source line
-first, then registered append-only and ported deliberately into the mirror when
-needed. Do not split package truth across both remotes by accident.
+Release metadata changes land on the canonical org source line, then register
+append-only in `tinyland-inc/bazel-registry`. Never port release work into the
+archived legacy mirror or the old personal redirect.
 
 Current runner truth:
 
@@ -216,7 +224,7 @@ Current runner truth:
 - do not describe the runner lane as fully proven until repo Actions runner
   visibility and green workflow runs confirm it
 - keep private runner topology, cluster names, and apply details out of this
-  public repo; track those in the private infrastructure repo and Linear
+  repository; track those in the private infrastructure repo and Linear
 
 ## Effect / Architecture Notes
 
@@ -241,24 +249,15 @@ These boundaries matter:
 - App-specific admin UI does **not** belong here.
 - Payment adapters should stay business-agnostic and site-agnostic.
 
-If a feature requires Playwright, remote HTTP bridge calls, Modal deployment
-details, or selector maintenance, it almost certainly belongs in
-`acuity-middleware`, not here.
+Playwright and selector maintenance belong in `scheduling-bridge`. Kit may
+compose a typed bridge capability but must not absorb its browser lifecycle.
+Deployment policy belongs to the business-owned application overlay.
 
 ## Testing Strategy
 
-Important commands:
-
-```bash
-pnpm test:unit
-pnpm test:integration
-pnpm test:component
-pnpm test:e2e
-pnpm test:live
-pnpm build
-pnpm check
-pnpm exec publint
-```
+There is no agent-local validation command on Neo. Select and execute the
+repo-managed Bazel targets through GF; keep live-provider validation separately
+credentialed and explicitly invoked.
 
 Testing layers:
 
@@ -301,7 +300,7 @@ Do not turn live-provider tests into the default CI path.
 - Do not move browser automation into this repo.
 - Do not let `package.json`, `MODULE.bazel`, and `BUILD.bazel` artifact identity
   drift; this alignment is build integrity, not a second delivery graph.
-- Do not speak ambiguously about both `main` branches as if they are equally
-  authoritative.
+- Do not reintroduce authority to the old personal redirect or the private
+  archived legacy mirror.
 - Do not leak site-specific environment logic into library contracts.
 - Do not assume MassageIthaca is the only downstream consumer.
