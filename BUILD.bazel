@@ -326,6 +326,34 @@ vitest_bin.vitest_test(
     visibility = ["//visibility:public"],
 )
 
+# The existing rendered-component suite exercises the actual Svelte callbacks.
+# Keep it graph-addressable; script-only component results are not Bazel proof.
+# This target must be selected by an admitted GF invocation, never run on Neo.
+vitest_bin.vitest_test(
+    name = "test-component",
+    tags = ["manual"],
+    data = [
+        ":node_modules",
+        ":svelte_kit_sync",
+        "package.json",
+        "svelte.config.js",
+        "tsconfig.json",
+        "vitest.component.config.ts",
+    ] + glob([
+        "src/**/*.ts",
+        "src/**/*.svelte",
+        "tests/e2e/**/*.ts",
+    ]),
+    args = [
+        "run",
+        "--reporter=verbose",
+        "--config",
+        "$(rootpath vitest.component.config.ts)",
+    ],
+    log_level = "info",
+    visibility = ["//visibility:public"],
+)
+
 # =============================================================================
 # Typecheck (svelte-check)
 # =============================================================================
