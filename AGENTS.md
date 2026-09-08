@@ -9,32 +9,48 @@
 
 This file is the operating brief for AI agents and LLMs working in `@tummycrypt/scheduling-kit`.
 
-## GloriousFlywheel Cache Enrollment (cache-first)
+## Execution authority and current CI gap
 
-`scheduling-kit` enrolls in the GloriousFlywheel shared Bazel cache (cache-first,
-TIN-1997 Option D; pilot tracked as TIN-2110).
+> **REALITY — 2026-09-08:** the checked-in workflow still calls the historical
+> `ci-templates@v3.1.0` cache-backed package lane. That source fact is not current
+> GF admission, a current execution contract, or an exact-head validation receipt.
+> The former cache-first/no-REAPI instruction is superseded; do not use it to
+> resist or invent the estate's GF convergence.
 
-- **Do NOT** create runners or a bespoke cache instance. Route everything through
-  the shared `tinyland-inc/ci-templates` surface and the existing GloriousFlywheel
-  substrate.
-- **Do NOT** run raw `bazel build` as validation enrollment. A green build on the
-  `tinyland-nix` runner with only `--disk_cache` is **NOT** cache-backed and is
-  not enrollment.
-- Attach to the shared substrate via the cache-backed lane: the ci-templates
-  `js-bazel-package.yml` `cache_backed: true` input, which runs the fail-closed
-  contract checker and then `--config=ci-cached --remote_cache=$BAZEL_REMOTE_CACHE
-  --remote_upload_local_results=false`. The cache endpoint is injected at runtime
-  by the in-cluster `nix-setup` (resolved from cluster DNS); it is never baked
-  into `.bazelrc`.
-- Self-verify with `scripts/cache-attachment-contract.sh --strict` (or
-  `nix develop --command just cache-contract-strict`). The checker fails closed
-  on unset/placeholder/non-grpc endpoints, so a misconfigured lane surfaces the
-  BLOCKED state instead of silently building local-only.
-- REAPI / remote executor is **out of scope** (cache-first only). Never wire
-  `--remote_executor` or `--config=executor-backed`.
-- Cache attach is **not** org-migration closure. A green cache-backed build does
-  not close GF#412 / TIN-1516; org-migration vs widened-ARC-scope remains a
-  separate operator decision.
+- All execution belongs to GloriousFlywheel and its owner overlays, through
+  `tinyland-inc/ci-templates`. This package owns no runners or cluster topology.
+- Never run local builds, tests, Bazel/Bazelisk, Nix, development servers, or
+  containers on Neo. Do not introduce a hosted-runner or local fallback.
+- Adopt only the reviewed, admitted GF/template contract. Do not guess a newer
+  workflow version, migrate infrastructure here, or describe source enrollment
+  as runtime proof. Report missing admission as a separate evidence gate.
+- Keep historical cache receipts as history; they do not prove the native
+  scheduling lifecycle or qualify a new source head.
+
+## Ratified flagship boundary (2026-09-07; recorded 2026-09-08)
+
+The operator's scheduling-system interview supersedes adopter-first completion
+claims. The implementation contract is [Flagship architecture](docs/architecture.md).
+Linear TIN-2764 carries the programme and evidence audit; dates belong in Linear.
+
+- Build a FOSS, self-hosted stateful replacement, not only a migration UI.
+  Design solo appointments, teams/resources, and capacity events together;
+  prove the native solo lifecycle first using synthetic, operator-only data.
+- A business owns its app, Postgres, secrets, and backups through its overlay.
+  Postgres is the durable authority; Redis and Tempo are disposable projections.
+  Reuse `tinyland-business-pg`, calendar, forms, and existing BCR modules.
+- Bridge discovery is dynamic and runtime-verified, not a manually frozen list
+  of provider DOM IDs. Browser automation stays in scheduling-bridge;
+  computer-use is development/QA assistance, never the customer runtime.
+- Payment and booking are separate receipts. Preserve automated PayPal-backed
+  Venmo and direct Venmo awaiting staff verification; never invent a booking,
+  assume a capture, or mark a pending collection paid.
+- Intake is agnostic MVP configuration and explicit consent. SOAP workflows and
+  HIPAA/compliance claims are excluded from alpha and beta; architecture is not
+  an audit or certification. No client participates in platform QA.
+- These are accepted design constraints, not claims that the current release
+  implements them. No client adoption, provider parity, deployment readiness,
+  or performance SLO follows from a source-only or mock-test result.
 
 ## Repo Role
 
@@ -61,7 +77,7 @@ For browser automation and remote Acuity scraping, use
 
 ## Strategic Goal
 
-This package is the reusable migration layer for businesses moving away from
+This package is the reusable stateful scheduling system for businesses moving away from
 Acuity, GlossGenius, and similar closed platforms toward a controlled path:
 
 1. keep the live business running
@@ -235,9 +251,9 @@ These boundaries matter:
 - App-specific admin UI does **not** belong here.
 - Payment adapters should stay business-agnostic and site-agnostic.
 
-If a feature requires Playwright, remote HTTP bridge calls, Modal deployment
-details, or selector maintenance, it almost certainly belongs in
-`acuity-middleware`, not here.
+Playwright and selector maintenance belong in `scheduling-bridge`. Kit may
+compose a typed bridge capability but must not absorb its browser lifecycle.
+Deployment policy belongs to the business-owned application overlay.
 
 ## Testing Strategy
 

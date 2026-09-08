@@ -44,6 +44,7 @@ markdown_extensions:
 
 nav:
   - Home: index.md
+  - Flagship Architecture: architecture.md
   - Build & Release: build-and-release.md
   - Testing: testing.md
   - Tracing: tracing.md

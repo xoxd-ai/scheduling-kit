@@ -24,21 +24,26 @@ site-specific control planes.
 Browser automation and remote Acuity scraping belong in
 `@tummycrypt/scheduling-bridge` plus the adopter app that drives it.
 
+## Flagship direction and evidence
+
+The [architecture contract](architecture.md) defines the ratified native
+scheduling destination and the bridge transition path. It distinguishes required
+invariants from current implementation gaps. The [parity matrix](parity-matrix.md)
+retains historical source/test evidence; it is not a production-readiness claim.
+
 ## Build truth
 
-This repo intentionally keeps two build surfaces:
-
-- `pnpm` is the local package-manager and script interface
-- Bazel defines and builds the JavaScript package artifact validated by GF
-
-The local flake and `.envrc` exist to provision those tools consistently on a
-fresh machine. They do not replace Bazel or become a second package authority.
-The Bzlmod graph through `tinyland-inc/bazel-registry` is the sole delivery
-path; provider package registries are not current consumer routes.
+Bazel/Bzlmod is the sole package graph and artifact authority, delivered through
+`tinyland-inc/bazel-registry`. Lockfile translation and package-manager calls
+inside the build are implementation mechanics, not another operator or consumer
+lane. Agents never run local builds, tests, or development servers on Neo.
+Validation must carry an exact-head GF receipt; the historical workflow checked
+into this repository does not itself establish current GF admission.
 
 ## Where to go next
 
 - [Build & Release](build-and-release.md) for bootstrap, Bazel, Nix, and delivery hygiene
+- [Flagship architecture](architecture.md) for native/bridge state authority and acceptance gates
 - [Testing](testing.md) for the actual test layout and commands in this tree
 - [Tracing](tracing.md) for cassette-based recording and replay details
 - [Generated package surface](generated/package-surface.md) for the current export map and source inventory
