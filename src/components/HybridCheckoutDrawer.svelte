@@ -12,6 +12,8 @@
   import type { Service, Provider, ClientInfo, TimeSlot, Booking, PaymentIntent, PaymentResult } from '../core/types.js';
   import type { AcuityBookingData } from '../lib/acuity-listener.js';
   import type { OrderCreateParams } from './VenmoCheckout.svelte';
+  import { Effect } from 'effect';
+  import { parsePaymentRef } from '../core/payment-ref.js';
   import { Dialog, Portal } from '@skeletonlabs/skeleton-svelte';
   import ServicePicker from './ServicePicker.svelte';
   import ProviderPicker from './ProviderPicker.svelte';
@@ -330,6 +332,18 @@
         paymentProcessor: processor,
       });
       completedBooking = booking;
+      // Native backends expose the bare ID and optional processor; Acuity can
+      // expose the existing notes codec. Missing incumbent fields are not a
+      // fabricated mismatch, but populated contradictory references must stop.
+      if (booking.paymentMethod?.trim() && booking.paymentMethod !== processor) {
+        throw new Error('The booking names a different payment processor.');
+      }
+      if (booking.paymentRef?.trim() && booking.paymentRef !== result.transactionId) {
+        const reference = await Effect.runPromise(parsePaymentRef(booking.paymentRef));
+        if (reference.processor !== processor || reference.transactionId !== result.transactionId) {
+          throw new Error('The booking references a different payment.');
+        }
+      }
       // Existing receipt fields must bind to this selection and capture. This
       // checks consistency, not provider authenticity or business/attempt custody.
       if (paymentObservations.length !== 1 || !booking.id?.trim() || booking.status !== 'confirmed'
