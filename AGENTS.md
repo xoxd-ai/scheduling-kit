@@ -150,13 +150,11 @@ authority.
 
 ### Canonical validation and delivery path
 
-Today, the functional validation path is driven by:
-
-- the shared `js-bazel-package` GitHub Actions workflow on GF
-- exact-head Bazel/Bzlmod graph validation
-- Bazel targets including `//:pkg`
-- package output from `./bazel-bin/pkg`
-- GF validation only; this repo has no package-publication workflow
+The checked-in historical workflow calls `js-bazel-package` and names Bazel
+targets including `//:pkg` and output `./bazel-bin/pkg`. This inventory is not
+current admission or proof that those targets ran. The required acceptance
+evidence is exact-head Bazel/Bzlmod validation through the reviewed, admitted
+GF contract. This repo has no package-publication workflow.
 
 The functional source and release repository is
 `tinyland-inc/scheduling-kit`. No second release remote exists.

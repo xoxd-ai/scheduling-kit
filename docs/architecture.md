@@ -78,9 +78,11 @@ browser request payload is an authoritative booking or captured payment.
 
 | Observation | Honest disposition |
 | --- | --- |
-| Server booking receipt, no verified collection | Booked; payment pending collection |
+| Server booking receipt, collection owed but not verified | Booked; payment pending collection |
+| Server booking receipt, explicitly free/waived/no collection required | Booked; no collection owed, not a fabricated payment capture |
 | Verified provider capture, no booking receipt | Captured but unbooked; reconcile the original capture, do not charge again |
-| Booking receipt plus verified capture | Booked and paid, each with its own identity |
+| Booking receipt plus verified capture matching business/order, required amount, and currency | Booked and paid, each with its own identity |
+| Partial capture, amount/currency mismatch, or uncertain business/order binding | Reconcile; presence of two IDs is not payment-in-full evidence |
 | Ambiguous submit/capture/refund outcome | Reconciliation required; no blind mutation replay |
 | Staff verifies direct/manual collection | Record explicit staff verification before changing collection state |
 
