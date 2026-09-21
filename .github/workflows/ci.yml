@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   package:
-    uses: tinyland-inc/ci-templates/.github/workflows/js-bazel-package.yml@v3.1.0
+    uses: xoxd-ai/ci-templates/.github/workflows/js-bazel-package.yml@v3.2.1
     with:
       runner_mode: repo_owned
       runner_labels_json: ${{ vars.PRIMARY_LINUX_RUNNER_LABELS_JSON }}
@@ -42,7 +42,7 @@ jobs:
       # contract + --config=ci-cached --remote_cache=$BAZEL_REMOTE_CACHE
       # (read-only, no executor). Endpoint is injected at runtime by the
       # in-cluster nix-setup; nothing is baked. Cache-first only.
-      cache_backed: true
+      cache_backed: false
       package_dir: ./bazel-bin/pkg
 
   # Repo-local lane for the write-time double-booking proof (TIN-2764). The
@@ -62,7 +62,7 @@ jobs:
       PG_INTEGRATION: "1"
     steps:
       - uses: actions/checkout@v4
-      - uses: tinyland-inc/ci-templates/.github/actions/nix-setup@v3.1.0
+      - uses: xoxd-ai/ci-templates/.github/actions/nix-setup@v3.2.1
       - uses: pnpm/action-setup@v4
         with:
           version: "9.15.9"

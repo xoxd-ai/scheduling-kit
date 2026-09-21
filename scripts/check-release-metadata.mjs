@@ -29,7 +29,7 @@ const scalar = (value) =>
 		.replace(/\s+#.*$/, '')
 		.trim();
 const usesPinnedPackageWorkflow = (workflow) =>
-	/uses:\s*tinyland-inc\/ci-templates\/\.github\/workflows\/js-bazel-package\.yml@(?:[0-9a-fA-F]{40}|v[0-9]+\.[0-9]+\.[0-9]+)\b/.test(
+	/uses:\s*(?:tinyland-inc|xoxd-ai)\/ci-templates\/\.github\/workflows\/js-bazel-package\.yml@(?:[0-9a-fA-F]{40}|v[0-9]+\.[0-9]+\.[0-9]+)\b/.test(
 		workflow,
 	);
 const hasWorkflowConcurrency = (workflow) => /\nconcurrency:\n/.test(workflow);
@@ -167,7 +167,7 @@ const checks = [
 	{
 		label: 'GF PostgreSQL uses pinned nix setup',
 		actual: String(
-			/uses:\s*tinyland-inc\/ci-templates\/\.github\/actions\/nix-setup@(?:[0-9a-fA-F]{40}|v[0-9]+\.[0-9]+\.[0-9]+)\b/.test(
+			/uses:\s*(?:tinyland-inc|xoxd-ai)\/ci-templates\/\.github\/actions\/nix-setup@(?:[0-9a-fA-F]{40}|v[0-9]+\.[0-9]+\.[0-9]+)\b/.test(
 				ciWorkflow,
 			),
 		),

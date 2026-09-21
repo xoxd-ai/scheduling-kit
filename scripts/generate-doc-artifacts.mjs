@@ -34,7 +34,7 @@ const ciRunnerMode = extract(ciWorkflow, /runner_mode:\s*([^\n]+)/, 'CI runner m
 const ciRunnerLabels = extract(ciWorkflow, /runner_labels_json:\s*([^\n]+)/, 'CI runner labels');
 const ciTemplateRef = extract(
   ciWorkflow,
-  /uses:\s*tinyland-inc\/ci-templates\/\.github\/workflows\/js-bazel-package\.yml@([^\s]+)/,
+  /uses:\s*(?:tinyland-inc|xoxd-ai)\/ci-templates\/\.github\/workflows\/js-bazel-package\.yml@([^\s]+)/,
   'CI template ref',
 );
 
@@ -180,7 +180,7 @@ ${markdownTable(
     ['Bazel registry', registryUrl],
     ['Source repository', packageJson.repository.url.replace(/^git\+/, '')],
     ['CI purpose', 'GF validation only'],
-    ['CI template', `\`tinyland-inc/ci-templates@${ciTemplateRef}\``],
+    ['CI template', `\`xoxd-ai/ci-templates@${ciTemplateRef}\``],
     ['CI runner mode', `\`${ciRunnerMode}\``],
     ['CI runner labels', `\`${ciRunnerLabels}\``],
     ['CI node versions', `\`${ciNodeVersions}\``],
