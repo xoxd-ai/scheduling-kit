@@ -42,7 +42,7 @@ jobs:
       # contract + --config=ci-cached --remote_cache=$BAZEL_REMOTE_CACHE
       # (read-only, no executor). Endpoint is injected at runtime by the
       # in-cluster nix-setup; nothing is baked. Cache-first only.
-      cache_backed: true
+      cache_backed: false
       package_dir: ./bazel-bin/pkg
 
   # Repo-local lane for the write-time double-booking proof (TIN-2764). The
