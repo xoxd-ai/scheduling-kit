@@ -27,7 +27,7 @@ Generated from `package.json`, `MODULE.bazel`, `BUILD.bazel`,
 | Bazel registry | https://raw.githubusercontent.com/tinyland-inc/bazel-registry/main |
 | Source repository | https://github.com/Jesssullivan/scheduling-kit.git |
 | CI purpose | GF validation only |
-| CI template | `tinyland-inc/ci-templates@v3.1.0` |
+| CI template | `xoxd-ai/ci-templates@v3.2.1` |
 | CI runner mode | `repo_owned` |
 | CI runner labels | `${{ vars.PRIMARY_LINUX_RUNNER_LABELS_JSON }}` |
 | CI node versions | `["20", "22"]` |
