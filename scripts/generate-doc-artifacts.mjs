@@ -180,7 +180,7 @@ ${markdownTable(
     ['Bazel registry', registryUrl],
     ['Source repository', packageJson.repository.url.replace(/^git\+/, '')],
     ['CI purpose', 'GF validation only'],
-    ['CI template', `\`tinyland-inc/ci-templates@${ciTemplateRef}\``],
+    ['CI template', `\`xoxd-ai/ci-templates@${ciTemplateRef}\``],
     ['CI runner mode', `\`${ciRunnerMode}\``],
     ['CI runner labels', `\`${ciRunnerLabels}\``],
     ['CI node versions', `\`${ciNodeVersions}\``],
