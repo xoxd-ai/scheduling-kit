@@ -684,7 +684,7 @@
               {#each paymentObservations as observation}
                 <div class="mb-3">
                   <p><strong>Payment processor:</strong> {observation.processor}</p>
-                  <p><strong>Payment reference:</strong> {observation.transactionId || 'Unavailable — provider verification required'}</p>
+                  <p><strong>Payment reference:</strong> {observation.transactionId || 'Unavailable: provider verification required'}</p>
                   <p><strong>Payment observation:</strong> {observation.timestamp}</p>
                   <p><strong>Observed amount:</strong> {observation.amount} minor units {observation.currency}</p>
                 </div>

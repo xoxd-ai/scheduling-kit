@@ -321,7 +321,7 @@ describe('HybridCheckoutDrawer payment routing', () => {
     if (['missing capture id', 'wrong amount', 'wrong currency', 'wrong processor'].includes(scenario)) {
       expect(onBookWithPaymentRef).not.toHaveBeenCalled();
       if (scenario === 'missing capture id') {
-        expect(screen.getByText(/Unavailable — provider verification required/)).toBeInTheDocument();
+        expect(screen.getByText(/Unavailable: provider verification required/)).toBeInTheDocument();
       }
     } else {
       expect(screen.getAllByText(/CAPTURE-SYNTHETIC-1/).length).toBeGreaterThan(0);
