@@ -365,6 +365,18 @@
     </div>
   {/if}
 
+  <!-- The child owns order/capture state. Parent-owned cancellation cannot
+       safely infer whether an approval or capture is in flight. -->
+  {#if onCancel && !processing && !currentOrderId}
+    <button
+      type="button"
+      class="btn btn-sm preset-tonal mt-3 w-full"
+      onclick={() => { if (!processing && !currentOrderId) onCancel?.(); }}
+    >
+      Choose a different payment method
+    </button>
+  {/if}
+
   <!-- Security Note -->
   <p class="security-note text-xs text-surface-400-600 text-center mt-4">
     Secure payment powered by PayPal
