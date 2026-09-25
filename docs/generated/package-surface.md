@@ -11,7 +11,7 @@ Generated from `package.json` and the current `src/` tree.
 | Field | Value |
 | --- | --- |
 | Package | `@tummycrypt/scheduling-kit` |
-| Version | `0.11.1` |
+| Version | `0.11.2` |
 | Description | Backend-agnostic scheduling components with alternative payment support |
 | Node range | `>=20 <25` |
 | Repository | https://github.com/Jesssullivan/scheduling-kit.git |

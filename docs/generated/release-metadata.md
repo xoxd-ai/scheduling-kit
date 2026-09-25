@@ -11,9 +11,9 @@ Generated from `package.json`, `MODULE.bazel`, `BUILD.bazel`,
 
 | Surface | Value |
 | --- | --- |
-| package.json version | `0.11.1` |
-| MODULE.bazel version | `0.11.1` |
-| BUILD.bazel JS package version | `0.11.1` |
+| package.json version | `0.11.2` |
+| MODULE.bazel version | `0.11.2` |
+| BUILD.bazel JS package version | `0.11.2` |
 | BUILD.bazel JS package name | `@tummycrypt/scheduling-kit` |
 | .bazelversion | `8.1.1` |
 | pnpm packageManager | `pnpm@9.15.9` |
