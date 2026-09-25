@@ -3,7 +3,7 @@
 	"schema_version": 1,
 	"repo": {
 		"name": "scheduling-kit",
-		"github": "Jesssullivan/scheduling-kit",
+		"github": "tinyland-inc/scheduling-kit",
 		"description": "Backend-agnostic, headless scheduling library with pluggable adapters, payment processors, and Svelte UI; delivered through Bzlmod from the Bazel //:pkg artifact.",
 		"linear": {
 			"initiative": "TIN-89",
@@ -39,8 +39,8 @@
 		"package_registry": "tinyland-inc/bazel-registry"
 	},
 	"enrollment": {
-		"forgeScope": "Jesssullivan",
-		"operatorOverlay": "jesssullivan-infra",
+		"forgeScope": "tinyland-inc",
+		"operatorOverlay": "tinyland-infra",
 		"executionPool": "tinyland-nix",
 		"substrateMode": "shared-cache-backed"
 	},
@@ -48,7 +48,7 @@
 		"sbom": {
 			"status": "not-required",
 			"formats": ["CycloneDX JSON"],
-			"notes": "scheduling-kit enrollment dimensions (TIN-2110 pilot): forge scope = Jesssullivan personal account; operator overlay = jesssullivan-infra; execution pool = tinyland-nix (in-cluster ARC); substrate mode = shared-cache-backed (cache-first, TIN-1997 Option D). The Bazel cache endpoint is injected at runtime by the in-cluster nix-setup (never baked); enrollment is self-verified via scripts/cache-attachment-contract.sh --strict. Cache-first only: no remote executor / REAPI lane is wired."
+			"notes": "scheduling-kit enrollment dimensions (TIN-2110 pilot): forge scope = tinyland-inc; operator overlay = tinyland-infra; execution pool = tinyland-nix (in-cluster ARC); substrate mode = shared-cache-backed (cache-first, TIN-1997 Option D). The Bazel cache endpoint is injected at runtime by the in-cluster nix-setup (never baked); enrollment is self-verified via scripts/cache-attachment-contract.sh --strict. Cache-first only: no remote executor / REAPI lane is wired."
 		}
 	}
 }

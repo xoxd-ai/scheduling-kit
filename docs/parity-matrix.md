@@ -1,7 +1,7 @@
 # SchedulingAdapter Parity Matrix
 
 Per-method truth for the `SchedulingAdapter` contract
-([`src/adapters/types.ts`](https://github.com/Jesssullivan/scheduling-kit/blob/main/src/adapters/types.ts))
+([`src/adapters/types.ts`](https://github.com/tinyland-inc/scheduling-kit/blob/main/src/adapters/types.ts))
 across the three production lanes. Every claim cites a test ID
 (`file :: test name`), not an adjective. Where no test exists, the cell says
 so — see [Evidence gaps](#evidence-gaps).

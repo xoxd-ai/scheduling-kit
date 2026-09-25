@@ -1,7 +1,7 @@
 site_name: scheduling-kit
 site_description: Backend-agnostic scheduling library with Effect workflows, Bazel metadata, and Svelte checkout components
-repo_url: https://github.com/Jesssullivan/scheduling-kit
-repo_name: Jesssullivan/scheduling-kit
+repo_url: https://github.com/tinyland-inc/scheduling-kit
+repo_name: tinyland-inc/scheduling-kit
 docs_dir: docs
 site_dir: site
 strict: true

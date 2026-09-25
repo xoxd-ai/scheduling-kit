@@ -14,7 +14,7 @@ Generated from `package.json` and the current `src/` tree.
 | Version | `0.11.1` |
 | Description | Backend-agnostic scheduling components with alternative payment support |
 | Node range | `>=20 <25` |
-| Repository | https://github.com/Jesssullivan/scheduling-kit.git |
+| Repository | https://github.com/tinyland-inc/scheduling-kit.git |
 
 ## Export Map
 

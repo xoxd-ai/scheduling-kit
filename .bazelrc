@@ -3,7 +3,7 @@
 # =============================================================================
 
 common --enable_bzlmod
-common --registry=https://raw.githubusercontent.com/tinyland-inc/bazel-registry/main
+common --registry=https://raw.githubusercontent.com/tinyland-inc/bazel-registry/cfbb16e6ae957da9e8a25b7418a7871ec815e0a1
 common --registry=https://bcr.bazel.build
 
 # Build performance
