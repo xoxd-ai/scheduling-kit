@@ -22,7 +22,7 @@ export const expectSuccess = async <A>(
   if (Exit.isSuccess(exit)) {
     return exit.value;
   }
-  const error = Cause.failureOption(exit.cause);
+  const error = Cause.findErrorOption(exit.cause);
   throw new Error(
     `Expected success but got failure: ${JSON.stringify(error)}`
   );
@@ -52,7 +52,7 @@ export const expectFailure = async <A>(
 ): Promise<SchedulingError> => {
   const exit = await Effect.runPromiseExit(effect);
   if (Exit.isFailure(exit)) {
-    const error = Cause.failureOption(exit.cause);
+    const error = Cause.findErrorOption(exit.cause);
     if (error._tag === 'Some') {
       return error.value;
     }

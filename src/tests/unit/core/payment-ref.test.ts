@@ -31,7 +31,7 @@ const parseErr = (raw: string | undefined | null): ValidationError => {
   if (Exit.isSuccess(exit)) {
     throw new Error(`Expected parse failure for: ${String(raw)}`);
   }
-  const failure = Cause.failureOption(exit.cause);
+  const failure = Cause.findErrorOption(exit.cause);
   if (Option.isNone(failure)) {
     throw new Error('Expected a typed failure, got a defect');
   }

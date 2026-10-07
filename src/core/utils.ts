@@ -116,15 +116,14 @@ export const withRetry = <A>(
     e._tag === 'InfrastructureError' && e.code !== 'TIMEOUT'
   );
 
-  const schedule = pipe(
-    Schedule.intersect(
-      Schedule.exponential(Duration.millis(initialDelayMs), backoffMultiplier),
-      Schedule.recurs(maxAttempts - 1),
-    ),
-    Schedule.whileInput<SchedulingError>(shouldRetry),
-  );
+  // Effect 4: Schedule.intersect is Schedule.max (recur while both recur,
+  // using the larger delay), and the input predicate moves to retry's `while`.
+  const schedule = Schedule.max([
+    Schedule.exponential(Duration.millis(initialDelayMs), backoffMultiplier),
+    Schedule.recurs(maxAttempts - 1),
+  ]);
 
-  return Effect.retry(effect, schedule);
+  return Effect.retry(effect, { schedule, while: shouldRetry });
 };
 
 // =============================================================================
@@ -142,9 +141,9 @@ export const withTimeout = <A>(
 
   return pipe(
     effect,
-    Effect.timeoutFail({
+    Effect.timeoutOrElse({
       duration: Duration.millis(timeoutMs),
-      onTimeout: () => error,
+      orElse: () => Effect.fail(error),
     }),
   );
 };
@@ -234,7 +233,7 @@ export const recoverWith = <A>(
 ) => (effect: SchedulingResult<A>): SchedulingResult<A> =>
   pipe(
     effect,
-    Effect.catchAll((error) =>
+    Effect.catch((error) =>
       predicate(error) ? Effect.succeed(fallback) : Effect.fail(error)
     )
   );

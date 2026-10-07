@@ -224,10 +224,10 @@ export const resolveFieldAnswer = (
 		),
 	);
 
-export class FieldMatcher extends Context.Tag('scheduling-kit/FieldMatcher')<
+export class FieldMatcher extends Context.Service<
 	FieldMatcher,
 	FuzzyMatcher<FieldMatchQuery, FieldRule>
->() {}
+>()('scheduling-kit/FieldMatcher') {}
 
 /** Default FieldMatcher layer (Layer substitution replaces test-seam overrides). */
 export const FieldMatcherLive: Layer.Layer<FieldMatcher> = Layer.sync(FieldMatcher, () =>

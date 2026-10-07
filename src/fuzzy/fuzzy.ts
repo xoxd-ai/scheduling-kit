@@ -51,10 +51,10 @@ export interface ServiceCandidate {
 	readonly ref: string;
 }
 
-export class ServiceMatcher extends Context.Tag('scheduling-kit/ServiceMatcher')<
+export class ServiceMatcher extends Context.Service<
 	ServiceMatcher,
 	FuzzyMatcher<ServiceMatchQuery, ServiceCandidate>
->() {}
+>()('scheduling-kit/ServiceMatcher') {}
 
 // =============================================================================
 // SHARED SCORING MACHINERY

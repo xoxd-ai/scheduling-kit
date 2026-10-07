@@ -415,7 +415,7 @@ suite('HomegrownAdapter concurrency against real Postgres', () => {
     expect(exits.filter((exit) => exit._tag === 'Success')).toHaveLength(1);
     const failures = exits.filter((exit) => exit._tag === 'Failure');
     expect(failures).toHaveLength(1);
-    const failure = Cause.failureOption(failures[0].cause);
+    const failure = Cause.findErrorOption(failures[0].cause);
     expect(Option.isSome(failure)).toBe(true);
     expect(Option.getOrThrow(failure)).toMatchObject({
       _tag: 'ReservationError',
