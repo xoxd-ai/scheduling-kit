@@ -109,8 +109,8 @@
     "@tummycrypt/tinyland-auth-pg": "^0.2.1",
     "@tummycrypt/tinyland-caldav-client": "^0.2.3",
     "@tummycrypt/tinyland-calendar": "^0.2.3",
-    "@skeletonlabs/skeleton": "^5.0.1",
-    "@skeletonlabs/skeleton-svelte": "^5.0.1",
+    "@skeletonlabs/skeleton": "5.0.1",
+    "@skeletonlabs/skeleton-svelte": "5.0.1",
     "svelte": "^5.0.0"
   },
   "peerDependenciesMeta": {

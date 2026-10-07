@@ -79,12 +79,35 @@ jobs:
           export CI_PNPM_BIN="$(command -v pnpm)"
           nix develop .#ci-postgres --command bash <<'POSTGRES_PROOF'
           set -euo pipefail
-          export PGDATA="$RUNNER_TEMP/scheduling-kit-postgres-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           export PATH="$CI_NODE_BIN_DIR:$(dirname "$CI_PNPM_BIN"):$PATH"
-          initdb --username="$PGUSER" --auth=trust "$PGDATA"
-          pg_ctl -D "$PGDATA" -l "$RUNNER_TEMP/scheduling-kit-postgres.log" \
-            -o "-h $PGHOST -p $PGPORT" -w start
-          trap 'pg_ctl -D "$PGDATA" -w stop -m fast >/dev/null 2>&1 || true' EXIT
+          # GF runner pods execute jobs as root, and initdb/postgres refuse to
+          # run as root. Drop to an unprivileged account for the database
+          # processes only; clients connect over TCP as the postgres role.
+          PG_AS=()
+          PG_ROOT_DIR="$RUNNER_TEMP"
+          if [ "$(id -u)" -eq 0 ]; then
+            PG_OS_USER=""
+            for candidate in runner nobody; do
+              if id "$candidate" >/dev/null 2>&1; then PG_OS_USER="$candidate"; break; fi
+            done
+            if [ -z "$PG_OS_USER" ]; then
+              echo "::error::running as root and no unprivileged account (runner, nobody) exists for PostgreSQL"
+              exit 1
+            fi
+            PG_ROOT_DIR="$(mktemp -d /tmp/scheduling-kit-pg.XXXXXX)"
+            chown "$(id -u "$PG_OS_USER"):$(id -g "$PG_OS_USER")" "$PG_ROOT_DIR"
+            PG_AS=(setpriv --reuid="$(id -u "$PG_OS_USER")" --regid="$(id -g "$PG_OS_USER")" --clear-groups --)
+            echo "running PostgreSQL as $PG_OS_USER under $PG_ROOT_DIR"
+          fi
+          export PGDATA="$PG_ROOT_DIR/scheduling-kit-postgres-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          PG_LOG="$PG_ROOT_DIR/scheduling-kit-postgres.log"
+          ${PG_AS[@]+"${PG_AS[@]}"} initdb --username="$PGUSER" --auth=trust "$PGDATA"
+          if ! ${PG_AS[@]+"${PG_AS[@]}"} pg_ctl -D "$PGDATA" -l "$PG_LOG" \
+            -o "-h $PGHOST -p $PGPORT -k $PG_ROOT_DIR" -w start; then
+            cat "$PG_LOG" || true
+            exit 1
+          fi
+          trap '${PG_AS[@]+"${PG_AS[@]}"} pg_ctl -D "$PGDATA" -w stop -m fast >/dev/null 2>&1 || true' EXIT
           createdb --maintenance-db=postgres "$PGDATABASE"
           pg_isready -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$PGDATABASE"
           "$CI_PNPM_BIN" test:integration

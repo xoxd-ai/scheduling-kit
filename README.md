@@ -283,7 +283,7 @@ const slots = getAvailableSlots({
 
 ## Components
 
-Svelte 5 components using runes syntax. Skeleton 5 integration for styling (peers `@skeletonlabs/skeleton` and `@skeletonlabs/skeleton-svelte` `^5.0.1`).
+Svelte 5 components using runes syntax. Skeleton 5 integration for styling (peers `@skeletonlabs/skeleton` and `@skeletonlabs/skeleton-svelte` exactly `5.0.1`).
 
 | Component | Description |
 | ----------- | ----------- |

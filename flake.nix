@@ -78,8 +78,12 @@
 
         # Remote-only database proof used by the GF integration lane. Keeping
         # PostgreSQL in the locked flake avoids a hosted service-container path.
+        # util-linux supplies setpriv: GF runner pods run jobs as root, and
+        # initdb/postgres refuse to start as root, so CI drops to an
+        # unprivileged uid for the database processes.
         devShells.ci-postgres = pkgs.mkShellNoCC {
-          packages = [ pkgs.postgresql_16 ];
+          packages = [ pkgs.postgresql_16 ]
+            ++ pkgs.lib.optionals pkgs.stdenv.isLinux [ pkgs.util-linux ];
         };
 
         devShells.default = pkgs.mkShellNoCC {
