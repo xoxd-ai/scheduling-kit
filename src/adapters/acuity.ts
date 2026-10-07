@@ -294,7 +294,7 @@ export const createAcuityAdapter = (config: AcuityAdapterConfig): SchedulingAdap
           get<{ valid: boolean }>(`/availability/check-times?${params}`),
           (result) => result.valid
         ),
-        Effect.catchAll(() => Effect.succeed(false)) // Treat errors as unavailable
+        Effect.catch(() => Effect.succeed(false)) // Treat errors as unavailable
       );
     },
 
@@ -332,7 +332,7 @@ export const createAcuityAdapter = (config: AcuityAdapterConfig): SchedulingAdap
     releaseSoftHold: (softHoldId) =>
       pipe(
         Effect.map(del<void>(`/blocks/${softHoldId}`), () => undefined),
-        Effect.catchAll(() => Effect.succeed(undefined)) // Ignore errors when releasing
+        Effect.catch(() => Effect.succeed(undefined)) // Ignore errors when releasing
       ),
 
     // Bookings

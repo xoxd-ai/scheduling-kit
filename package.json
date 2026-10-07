@@ -1,6 +1,6 @@
 {
   "name": "@tummycrypt/scheduling-kit",
-  "version": "0.11.1",
+  "version": "0.12.0",
   "description": "Backend-agnostic scheduling components with alternative payment support",
   "type": "module",
   "packageManager": "pnpm@9.15.9",
@@ -109,8 +109,8 @@
     "@tummycrypt/tinyland-auth-pg": "^0.2.1",
     "@tummycrypt/tinyland-caldav-client": "^0.2.3",
     "@tummycrypt/tinyland-calendar": "^0.2.3",
-    "@skeletonlabs/skeleton": "^4.0.0",
-    "@skeletonlabs/skeleton-svelte": "^4.0.0",
+    "@skeletonlabs/skeleton": "5.0.1",
+    "@skeletonlabs/skeleton-svelte": "5.0.1",
     "svelte": "^5.0.0"
   },
   "peerDependenciesMeta": {
@@ -132,10 +132,12 @@
   },
   "dependencies": {
     "drizzle-orm": "0.39.3",
-    "effect": "^3.19.14",
+    "effect": "4.0.1",
     "zod": "^4.3.5"
   },
   "devDependencies": {
+    "@skeletonlabs/skeleton": "5.0.1",
+    "@skeletonlabs/skeleton-svelte": "5.0.1",
     "@sveltejs/adapter-auto": "^7.0.0",
     "@sveltejs/kit": "^2.0.0",
     "@sveltejs/package": "^2.0.0",

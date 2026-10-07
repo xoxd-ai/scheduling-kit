@@ -44,7 +44,7 @@ const expectFailure = async <A>(effect: Effect.Effect<A, SchedulingError>): Prom
   const exit = await runExit(effect);
   expect(Exit.isFailure(exit), `Expected failure but got success`).toBe(true);
   if (Exit.isFailure(exit)) {
-    const opt = Cause.failureOption(exit.cause);
+    const opt = Cause.findErrorOption(exit.cause);
     if (opt._tag === 'Some') return opt.value;
   }
   throw new Error('Unreachable');

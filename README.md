@@ -65,7 +65,7 @@ Peer dependencies (install those you need):
 pnpm add svelte
 
 # Optional -- for UI components
-pnpm add @skeletonlabs/skeleton @skeletonlabs/skeleton-svelte
+pnpm add @skeletonlabs/skeleton@5.0.1 @skeletonlabs/skeleton-svelte@5.0.1
 
 # Optional -- for E2E tests
 pnpm add -D playwright-core
@@ -283,7 +283,7 @@ const slots = getAvailableSlots({
 
 ## Components
 
-Svelte 5 components using runes syntax. Optional Skeleton 4 integration for styling.
+Svelte 5 components using runes syntax. Skeleton 5 integration for styling (peers `@skeletonlabs/skeleton` and `@skeletonlabs/skeleton-svelte` exactly `5.0.1`).
 
 | Component | Description |
 | ----------- | ----------- |

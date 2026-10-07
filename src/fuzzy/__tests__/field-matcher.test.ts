@@ -7,7 +7,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { Effect, Exit } from 'effect';
+import { Cause, Effect, Exit, Option } from 'effect';
 import fc from 'fast-check';
 import {
 	DEFAULT_DEFERRED_VALUE,
@@ -105,10 +105,11 @@ describe('makeFieldMatcher / FieldMatcherLive', () => {
 		const matcher = makeFieldMatcher([DEFAULT_FIELD_RULES[2]], 0.5); // fallback only, threshold 0.5
 		const exit = await Effect.runPromiseExit(matcher.match({ label: 'whatever' }, []));
 		expect(Exit.isFailure(exit)).toBe(true);
-		if (Exit.isFailure(exit) && exit.cause._tag === 'Fail') {
-			expect(exit.cause.error).toBeInstanceOf(FuzzyMatchError);
-			expect(exit.cause.error.threshold).toBe(0.5);
-		}
+		const error = Exit.isFailure(exit)
+			? Option.getOrUndefined(Cause.findErrorOption(exit.cause))
+			: undefined;
+		expect(error).toBeInstanceOf(FuzzyMatchError);
+		expect(error?.threshold).toBe(0.5);
 	});
 
 	it('is providable through FieldMatcherLive behind the scheduling-kit tag', async () => {

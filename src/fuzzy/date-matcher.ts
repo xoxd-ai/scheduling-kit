@@ -262,10 +262,10 @@ export const matchSlotMembership = (
 		Effect.catchTag('FuzzyMatchError', () => Effect.succeed({ member: false })),
 	);
 
-export class DateMatcher extends Context.Tag('scheduling-kit/DateMatcher')<
+export class DateMatcher extends Context.Service<
 	DateMatcher,
 	FuzzyMatcher<DateMatchQuery, SlotCandidate>
->() {}
+>()('scheduling-kit/DateMatcher') {}
 
 /** Default DateMatcher layer (Layer substitution replaces test-seam overrides). */
 export const DateMatcherLive: Layer.Layer<DateMatcher> = Layer.sync(DateMatcher, () =>

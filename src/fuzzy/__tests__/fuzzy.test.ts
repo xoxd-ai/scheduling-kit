@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Effect, Exit } from 'effect';
+import { Cause, Effect, Exit, Option } from 'effect';
 import fc from 'fast-check';
 import {
 	FuzzyMatchError,
@@ -68,10 +68,11 @@ describe('makeServiceMatcher', () => {
 			matcher.match({ serviceName: 'completely unrelated thing' }, candidates),
 		);
 		expect(Exit.isFailure(exit)).toBe(true);
-		if (Exit.isFailure(exit) && exit.cause._tag === 'Fail') {
-			expect(exit.cause.error).toBeInstanceOf(FuzzyMatchError);
-			expect(exit.cause.error.threshold).toBe(matcher.threshold);
-		}
+		const error = Exit.isFailure(exit)
+			? Option.getOrUndefined(Cause.findErrorOption(exit.cause))
+			: undefined;
+		expect(error).toBeInstanceOf(FuzzyMatchError);
+		expect(error?.threshold).toBe(matcher.threshold);
 	});
 
 	it('keeps every admitted confidence within [threshold, 1]', async () => {

@@ -128,7 +128,7 @@ export const completeBookingWithAltPayment = (
         notes: `Payment pending: ${request.idempotencyKey}`,
       }),
       Effect.map((r) => r as SlotSoftHold | undefined),
-      Effect.catchAll((error) =>
+      Effect.catch((error) =>
         error._tag === 'ReservationError' && error.code === 'SLOT_TAKEN'
           ? Effect.fail(error)
           : Effect.succeed(undefined as SlotSoftHold | undefined),
@@ -147,7 +147,7 @@ export const completeBookingWithAltPayment = (
         }),
         (intent) => paymentAdapter.capturePayment(intent.id),
       ),
-      Effect.catchAll((error) => {
+      Effect.catch((error) => {
         if (softHold) {
           return Effect.flatMap(
             scheduler.releaseSoftHold(softHold.id),
@@ -172,14 +172,14 @@ export const completeBookingWithAltPayment = (
         payment.transactionId,
         paymentAdapter.name,
       ),
-      Effect.catchAll((error) =>
+      Effect.catch((error) =>
         Effect.gen(function* () {
-          yield* Effect.catchAll(
+          yield* Effect.catch(
             paymentAdapter.refund({ transactionId: payment.transactionId, reason: 'Booking creation failed' }),
             () => Effect.succeed(undefined),
           );
           if (softHold) {
-            yield* Effect.catchAll(
+            yield* Effect.catch(
               scheduler.releaseSoftHold(softHold.id),
               () => Effect.succeed(undefined),
             );
@@ -191,7 +191,7 @@ export const completeBookingWithAltPayment = (
 
     // Phase E: Cleanup - release soft hold
     if (softHold) {
-      yield* Effect.catchAll(
+      yield* Effect.catch(
         scheduler.releaseSoftHold(softHold.id),
         () => Effect.succeed(undefined),
       );
@@ -333,7 +333,7 @@ export const cancelBookingWithRefund = (
       input.refund && storedRef
         ? yield* pipe(
             parsePaymentRef(storedRef),
-            Effect.catchAll((parseError) =>
+            Effect.catch((parseError) =>
               structuredFallback ? Effect.succeed(structuredFallback) : Effect.fail(parseError)
             )
           )
@@ -359,7 +359,7 @@ export const cancelBookingWithRefund = (
 
     const refundResult = yield* pipe(
       paymentAdapter.refund({ transactionId, reason: input.reason ?? 'Booking cancelled' }),
-      Effect.catchAll(() => Effect.succeed({ success: false, refundId: '', originalTransactionId: transactionId, amount: 0, currency: 'USD', timestamp: new Date().toISOString() })),
+      Effect.catch(() => Effect.succeed({ success: false, refundId: '', originalTransactionId: transactionId, amount: 0, currency: 'USD', timestamp: new Date().toISOString() })),
     );
 
     return {

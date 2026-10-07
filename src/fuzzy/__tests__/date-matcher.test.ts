@@ -7,7 +7,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { Effect, Exit } from 'effect';
+import { Cause, Effect, Exit, Option } from 'effect';
 import fc from 'fast-check';
 import {
 	DEFAULT_DATE_MIN_CONFIDENCE,
@@ -150,10 +150,11 @@ describe('makeDateMatcher membership (behavior-preserving with the wizard inline
 			matcher.match({ datetime: '2026-12-31T23:59:00' }, slots),
 		);
 		expect(Exit.isFailure(exit)).toBe(true);
-		if (Exit.isFailure(exit) && exit.cause._tag === 'Fail') {
-			expect(exit.cause.error).toBeInstanceOf(FuzzyMatchError);
-			expect(exit.cause.error.threshold).toBe(DEFAULT_DATE_MIN_CONFIDENCE);
-		}
+		const error = Exit.isFailure(exit)
+			? Option.getOrUndefined(Cause.findErrorOption(exit.cause))
+			: undefined;
+		expect(error).toBeInstanceOf(FuzzyMatchError);
+		expect(error?.threshold).toBe(DEFAULT_DATE_MIN_CONFIDENCE);
 	});
 
 	it('is providable through DateMatcherLive behind the scheduling-kit tag', async () => {

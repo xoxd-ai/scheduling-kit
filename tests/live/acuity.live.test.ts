@@ -28,7 +28,7 @@ const run = async <A>(effect: Effect.Effect<A, SchedulingError>): Promise<
 > => {
   const exit = await Effect.runPromiseExit(effect);
   if (Exit.isSuccess(exit)) return { ok: true, value: exit.value };
-  const failure = Cause.failureOption(exit.cause);
+  const failure = Cause.findErrorOption(exit.cause);
   if (Option.isSome(failure)) return { ok: false, error: failure.value };
   throw new Error(`Unexpected defect: ${Cause.pretty(exit.cause)}`);
 };
