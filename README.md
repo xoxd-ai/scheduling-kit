@@ -4,14 +4,13 @@ Backend-agnostic scheduling library with Svelte 5 components, pluggable
 scheduling adapters, alternative payment support, and Effect-powered workflow
 composition.
 
-This repo keeps two intentionally different build surfaces:
+Bazel/Bzlmod is the sole package graph and artifact authority. The pnpm lockfile
+and package-manager tools remain internal Bazel dependency/build mechanics, not
+a delivery lane or release surface.
 
-- `pnpm` is the local package-manager and script interface
-- Bazel defines and builds the JavaScript package artifact validated by CI
-
-The recommended local bootstrap path is the repo flake plus `direnv`, which
-makes `pnpm`, `bazel` through Bazelisk, and the docs toolchain available from a
-clean shell.
+The recommended non-Neo operator bootstrap path is the repo flake plus
+`direnv`. Agent validation is remote-only on GF; never run build, test, Bazel,
+Nix, a development server, or a container on Neo.
 
 ## Features
 
@@ -38,7 +37,7 @@ bazel_dep(name = "tummycrypt_scheduling_kit", version = "0.11.1")
 with the registry line (already in this repo's `.bazelrc`):
 
 ```text
-common --registry=https://raw.githubusercontent.com/tinyland-inc/bazel-registry/main
+common --registry=https://raw.githubusercontent.com/tinyland-inc/bazel-registry/cfbb16e6ae957da9e8a25b7418a7871ec815e0a1
 ```
 
 The append-only registry receipt carrying `0.11.1` and its GF consumer proof is
@@ -73,16 +72,11 @@ pnpm add -D playwright-core
 
 ## Release Hygiene
 
-```bash
-pnpm check:release-metadata
-pnpm check:package
-bazel build //:pkg
-npm pack --dry-run ./bazel-bin/pkg
-```
-
-Those checks keep `package.json`, `MODULE.bazel`, and `BUILD.bazel` artifact
-identity aligned. GF runs the same validation against the Bazel-built artifact;
-delivery is the separately reviewed append-only BCR entry.
+GF validates the exact head through the ruled Bazel targets. That proof keeps
+`package.json`, `MODULE.bazel`, and `BUILD.bazel` artifact identity aligned.
+Do not substitute a local package-manager command, provider dry-run, or Neo
+execution for the GF receipt. Delivery is the separately reviewed append-only
+BCR entry.
 
 ## Documentation
 
@@ -98,17 +92,20 @@ nix flake check         # Evaluate flake outputs and run lightweight checks
 
 Current reality:
 
-- the functional source and tag line is `Jesssullivan/scheduling-kit`
-- `tinyland-inc/scheduling-kit` is now a downstream mirror and validation
-  surface, not a second release authority
-- source commit, tag, and GitHub Release `v0.11.1` resolve to
+- `tinyland-inc/scheduling-kit` is the sole functional source and tag line
+- the former personal repository was transferred into the organization and its
+  old URL is a redirect, not a second authority
+- `tinyland-inc/scheduling-kit-legacy-mirror` is private, archived, and
+  evidence-only
+- source commit, historical tag, and GitHub Release `v0.11.1` resolve to
   `9a00ee387afe1759ebba0c0a67e9246d84b1aa37`
 - the Tinyland Bazel registry carries `tummycrypt_scheduling_kit@0.11.1`; its
-  append-only proof receipt is `cfbb16e6ae957da9e8a25b7418a7871ec815e0a1`
+  append-only proof receipt and current exact registry pin are
+  `cfbb16e6ae957da9e8a25b7418a7871ec815e0a1`
 
-Treat `Jesssullivan/main` as the source authority for release metadata changes.
-Treat `tinyland-inc/bazel-registry` as delivery authority. Do not assume the two
-scheduling-kit `main` branches are equivalent.
+Treat `origin/main` as source authority for release metadata changes and
+`tinyland-inc/bazel-registry` as delivery authority. Never revive the old
+personal or legacy-mirror lanes.
 
 The delivery doctrine is:
 
@@ -130,7 +127,7 @@ The PostgreSQL concurrency proof uses the same GF capability class. This repo
 has no publish workflow, hosted-runner exception, provider coordinate, package
 write permission, or publication credential.
 
-Keep private runner topology and apply details out of this public repo.
+Keep private runner topology and apply details out of this repository.
 
 ## Quick Start
 

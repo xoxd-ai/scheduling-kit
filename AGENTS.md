@@ -1,5 +1,12 @@
 # scheduling-kit Agent Notes
 
+> **REALITY - 2026-08-28:** `tinyland-inc/scheduling-kit` is the sole
+> repository of record. The former `Jesssullivan/scheduling-kit` repository
+> was transferred into the organization and now redirects here. The divergent
+> stale org mirror is private and archived as
+> `tinyland-inc/scheduling-kit-legacy-mirror`; it has no source, CI,
+> dependency, tag, or release authority.
+
 This file is the operating brief for AI agents and LLMs working in `@tummycrypt/scheduling-kit`.
 
 ## GloriousFlywheel Cache Enrollment (cache-first)
@@ -80,7 +87,8 @@ Active threads:
 Closed but still relevant context:
 
 - `TIN-101` completed the mini sprint for toolchain authority and hermetic package convergence
-- `TIN-103` closed the release-authority ambiguity for `Jesssullivan/scheduling-kit`
+- `TIN-103` records the historical personal-repository authority through
+  `0.11.1`; the 2026-08-28 transfer supersedes that repository-location ruling
 - `TIN-104` was canceled as a duplicate during that convergence work
 - `TIN-165` is done: the tinyland Bazel registry is the package delivery SSOT
 - `TIN-3092` is done: the registry carries the immutable scheduling-kit
@@ -91,8 +99,10 @@ Closed but still relevant context:
 
 Current operational truth:
 
-- local development should default to `jesssullivan/main`
-- that branch is the current functional release line
+- local development and every source change default to `origin/main`, where
+  `origin` is `https://github.com/tinyland-inc/scheduling-kit.git`
+- this org branch is the sole functional source and release line; the old
+  personal URL is a redirect, never a second remote authority
 - current released version is `tummycrypt_scheduling_kit@0.11.1`: source commit
   and lightweight tag `9a00ee387afe1759ebba0c0a67e9246d84b1aa37`,
   GitHub Release `v0.11.1`, and append-only registry receipt
@@ -106,19 +116,17 @@ Current operational truth:
 - `#73` remains open only for explicit historical release-surface
   backfill/documentation around older `0.7.1` / `0.7.2` gaps; it cannot make a
   provider package a current delivery authority
-- `tinyland-inc/origin/main` is now a downstream mirror/validation surface,
-  not an equally authoritative release surface
+- `tinyland-inc/scheduling-kit-legacy-mirror` is private, archived, and
+  fetch-only evidence; never build, merge, publish, tag, or depend on it
 - source metadata, git tags, GitHub Releases, and append-only BCR entries are
   distinct evidence; only the registry entry delivers a current module
 
 ## Build Truth
 
-There are **two** build surfaces in this repo:
-
-1. `pnpm` remains the package-manager and script interface for local work
-2. Bazel defines and builds the JavaScript package artifact validated by CI
-
-Do not confuse them.
+Bazel/Bzlmod is the sole package graph and artifact authority. `pnpm-lock.yaml`,
+`npm_translate_lock`, and any package-manager invocation inside Bazel remain
+dependency-resolution/build mechanics only. They are not agent front doors,
+delivery lanes, or release authority.
 
 The repo flake and `.envrc` exist to make those surfaces reproducibly available
 from a fresh machine. They are bootstrap tools, not a second packaging
@@ -128,18 +136,14 @@ authority.
 
 Today, the functional validation path is driven by:
 
-- the shared `js-bazel-package` GitHub Actions workflow
-- metadata, typecheck, lint, test, and build commands invoked through pnpm
+- the shared `js-bazel-package` GitHub Actions workflow on GF
+- exact-head Bazel/Bzlmod graph validation
 - Bazel targets including `//:pkg`
 - package output from `./bazel-bin/pkg`
 - GF validation only; this repo has no package-publication workflow
 
-And, right now, the functional release repo is:
-
-- `Jesssullivan/scheduling-kit`
-
-Do not silently assume the `tinyland-inc` remote is equivalent just because it
-still exists.
+The functional source and release repository is
+`tinyland-inc/scheduling-kit`. No second release remote exists.
 
 ### Bazel role
 
@@ -178,20 +182,10 @@ Key points:
 
 ### CI
 
-The current CI validates on Node `20` and `22`.
-
-Primary checks:
-
-- `pnpm check`
-- `pnpm lint`
-- `pnpm test:unit`
-- `pnpm test:integration`
-- `pnpm build`
-- `publint`
-
-Typecheck/lint may be tolerated temporarily in CI if they are marked
-`continue-on-error`, but that should not be treated as a steady-state quality
-bar.
+Agent validation runs only on the repository-managed GF workflow. Never run
+build, test, Bazel, Nix, a development server, or a container on Neo. Completion
+evidence is an exact-head GF receipt over the ruled Bazel targets; a package
+manager command is never substitute proof.
 
 ### Delivery
 
@@ -205,9 +199,9 @@ Delivery doctrine:
   coordinates, credentials, publish permissions, consumer guidance, or a
   publish workflow back to this repository
 
-Release metadata changes should be made against the functional source line
-first, then registered append-only and ported deliberately into the mirror when
-needed. Do not split package truth across both remotes by accident.
+Release metadata changes land on the canonical org source line, then register
+append-only in `tinyland-inc/bazel-registry`. Never port release work into the
+archived legacy mirror or the old personal redirect.
 
 Current runner truth:
 
@@ -216,7 +210,7 @@ Current runner truth:
 - do not describe the runner lane as fully proven until repo Actions runner
   visibility and green workflow runs confirm it
 - keep private runner topology, cluster names, and apply details out of this
-  public repo; track those in the private infrastructure repo and Linear
+  repository; track those in the private infrastructure repo and Linear
 
 ## Effect / Architecture Notes
 
@@ -247,18 +241,9 @@ details, or selector maintenance, it almost certainly belongs in
 
 ## Testing Strategy
 
-Important commands:
-
-```bash
-pnpm test:unit
-pnpm test:integration
-pnpm test:component
-pnpm test:e2e
-pnpm test:live
-pnpm build
-pnpm check
-pnpm exec publint
-```
+There is no agent-local validation command on Neo. Select and execute the
+repo-managed Bazel targets through GF; keep live-provider validation separately
+credentialed and explicitly invoked.
 
 Testing layers:
 
@@ -301,7 +286,7 @@ Do not turn live-provider tests into the default CI path.
 - Do not move browser automation into this repo.
 - Do not let `package.json`, `MODULE.bazel`, and `BUILD.bazel` artifact identity
   drift; this alignment is build integrity, not a second delivery graph.
-- Do not speak ambiguously about both `main` branches as if they are equally
-  authoritative.
+- Do not reintroduce authority to the old personal redirect or the private
+  archived legacy mirror.
 - Do not leak site-specific environment logic into library contracts.
 - Do not assume MassageIthaca is the only downstream consumer.

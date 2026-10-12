@@ -19,7 +19,7 @@ const extract = (source, pattern, label) => {
 const expectedVersion = packageJson.version;
 const expectedPackageName = packageJson.name;
 const expectedPnpmVersion = packageJson.packageManager?.replace(/^pnpm@/, '');
-const expectedRepositoryUrl = 'git+https://github.com/Jesssullivan/scheduling-kit.git';
+const expectedRepositoryUrl = 'git+https://github.com/tinyland-inc/scheduling-kit.git';
 
 const includes = (source, needle) => source.includes(needle);
 const scalar = (value) =>
