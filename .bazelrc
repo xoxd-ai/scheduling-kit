@@ -2,6 +2,10 @@
 # scheduling-kit - Bazel Configuration
 # =============================================================================
 
+# Bound the Bazel client server. An idle server exits after 120 s instead of
+# holding a JVM for hours after a pnpm or just run (TIN-5770, R470).
+startup --max_idle_secs=120
+
 common --enable_bzlmod
 # In-house modules come from xoxd-ai/bazel-registry, pinned to a commit so the
 # registry bytes recorded in MODULE.bazel.lock cannot move under us (RU6). The
@@ -16,6 +20,8 @@ build --worker_sandboxing
 build --disk_cache=~/.cache/bazel-scheduling-kit
 build --keep_going
 build --show_timestamps
+# Never fall back silently from a remote lane to local execution (TIN-5770, R471).
+build --remote_local_fallback=false
 
 # Execution settings
 build --spawn_strategy=sandboxed,worker,local

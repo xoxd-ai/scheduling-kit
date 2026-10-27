@@ -82,6 +82,10 @@ bazel build //:pkg
 bazel test //...          # unit, component, svelte-check --tsgo + canary
 ```
 
+These local runs are local, non-qualifying developer diagnostics. The client
+server exits after 120 idle seconds (`startup --max_idle_secs=120` in
+`.bazelrc`). See `docs/build-and-release.md` for the cache-backed lane.
+
 Standalone `pnpm check` and `pnpm test:unit` report the missing in-house
 modules (3 svelte-check errors; the recurrence/availability/CalDAV suites fail)
 by design.
